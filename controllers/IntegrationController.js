@@ -1,6 +1,84 @@
 const axios = require('axios')
-const qs = require('qs')
+const fs = require('fs');
 const crypto = require('crypto');
+const path = require('path');
+const ZstdCodec = require('zstd-codec').ZstdCodec;
+
+const initzstd = async () => {
+    return new Promise((resolve, reject) => {
+        ZstdCodec.run(zstd => {
+            const streaming = new zstd.Streaming();
+            resolve(streaming)
+
+        });
+    })
+}
+
+const unzipZstFileInBlocks = async (uint8Array, initialBlockSize = 512) => {
+    const streaming = await initzstd();
+
+    try {
+        let offset = 0;
+        let blockSize = initialBlockSize;
+
+        while (offset < uint8Array.length) {
+            // Calcular el tamaño del bloque actual
+            const currentBlockSize = Math.min(blockSize, uint8Array.length - offset);
+
+            // Descomprimir el bloque actual
+            const compressedBlock = uint8Array.slice(offset, offset + currentBlockSize);
+            console.log("compressedBlock", compressedBlock)
+            const uncompressedBlock = streaming.decompress(compressedBlock);
+
+            // Procesar el bloque descomprimido aquí
+            console.log('Procesando bloque:', uncompressedBlock);
+
+            // Incrementar el desplazamiento para el siguiente bloque
+            offset += currentBlockSize;
+        }
+    } catch (error) {
+        console.error('Error al descomprimir los bloques:', error);
+    }
+};
+
+const downloadFile = async (url) => {
+    const rootDir = path.resolve(__dirname); // Obtiene la ruta del directorio raíz del proyecto
+    const destination = `${new Date().toISOString()}.zst`;
+    const zstFilePath = path.join(rootDir, "..", destination);
+
+    console.log("downloading...")
+    const response = await axios({
+        url,
+        method: 'GET',
+        responseType: 'arraybuffer', // Important: This ensures the response is treated as binary data
+    });
+
+    const compressedData = new Uint8Array(response.data);
+    console.log("unziping...")
+
+    unzipZstFileInBlocks(compressedData, 1024)
+        .then((blocks) => {
+            console.log("blocks", blocks)
+            console.log('Bloques descomprimidos:', blocks.length);
+            // Procesar cada bloque individualmente o guardarlos en archivos según tus necesidades.
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+    // const uncompressedData = zstd.(compressedData);
+
+    // const absoluteDestination = path.resolve(zstFilePath);
+
+    // // Crear el directorio (si no existe) antes de guardar el archivo
+    // const destinationDir = path.dirname(absoluteDestination);
+    // fs.mkdir(destinationDir, { recursive: true });
+
+    // console.log("downloaded..", absoluteDestination);
+
+    // // Utilizar fs.writeFile en lugar de fs.writeFileSync para escribir el buffer en el archivo
+    // fs.writeFile(absoluteDestination, uncompressedData);
+
+};
 
 exports.GetRatehawhotel = async (req, res) => {
     try {
@@ -10,7 +88,7 @@ exports.GetRatehawhotel = async (req, res) => {
         }
         const result = await axios({
             method: 'POST',
-            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/dump/',
+            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
@@ -18,9 +96,12 @@ exports.GetRatehawhotel = async (req, res) => {
             },
             data: JSON.stringify(data)
         })
-        return res.json(result.data)
+        const url = result.data.data.url;
+        await downloadFile(url, `${new Date().toISOString()}.zst`)
+        return res.json(result.data.data.url)
 
     } catch (error) {
+        console.log(error)
         return res.status(400).json({
             error: error
         })
@@ -108,7 +189,7 @@ exports.GetHotelBeds = async (req, res) => {
 
             const resultRooms = await axios({
                 method: 'POST',
-                url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels?fields=rateKey,net`,
+                url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
                 headers: Authorization,
                 data: JSON.stringify(paramsRooms)
             })

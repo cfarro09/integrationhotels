@@ -15,7 +15,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "sequelize": "^6.32.1"
+    "sequelize": "^6.32.1",
+    "zstd-codec": "^0.1.4"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
