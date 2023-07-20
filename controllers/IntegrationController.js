@@ -159,7 +159,7 @@ const processChunk = (data) => {
                 code: room.room_group_id + "",
                 name: room.name,
                 rates: [{
-                    price: hotel.metapolicy_struct.check_in_check_out.price,
+                    price: hotel.metapolicy_struct.check_in_check_out?.length > 0 ? hotel.metapolicy_struct.check_in_check_out[0].price : "",
                     adults: room.rg_ext.capacity,
                     rateKey: room.name,
                     boardName: room.name
