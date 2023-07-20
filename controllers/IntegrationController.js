@@ -53,14 +53,39 @@ function deleteDir(filePath) {
     fs.rmdirSync(filePath);
 }
 
+const cleanData = (data) => {
+    const hotels = data.map((hotel, index) => ({
+        ...hotel,
+        rooms: undefined,
+        id: index,
+    }));
+
+    const rooms1 = data.reduce((acc, item, indexHotel) => ([
+        ...acc,
+        ...(item.rooms?.map(room => ({
+            ...room,
+            hotelid: indexHotel
+        })) ?? []).map((room, index) => ({ ...room, id: index }))
+    ]), []);
+
+    const rates = rooms1.reduce((acc, item) => ([
+        ...acc,
+        ...(item.rates?.map(rate => ({
+            ...rate,
+            roomid: item.id
+        })) ?? []).map((rate, index) => ({ ...rate, id: index }))
+    ]), [])
+
+    return { hotels, rooms: rooms1.map(x => ({ ...x, rates: undefined }), rates) }
+}
+
 const processChunk = (data) => {
     try {
         const listObj = data.split(/\n/);
         const lastText = listObj.pop();
         const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
-    
-        const transformData = jsonFormat.filter(hotel => hotel.name).map((hotel, iHotel) => ({
-            id: iHotel + 1,
+
+        const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
             code: null,
             name: hotel.name,
             address: hotel.address,
@@ -68,21 +93,19 @@ const processChunk = (data) => {
             phone: hotel.phone,
             city: "",
             description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
-            rooms: hotel.room_groups?.map((room, iRoom) => ({
-                id: iHotel + iRoom + 1,
+            rooms: hotel.room_groups?.map((room) => ({
                 code: room.room_group_id + "",
                 name: room.name,
                 rates: [{
-                    id: iHotel + iRoom + 1,
                     price: hotel.metapolicy_struct.check_in_check_out.price,
                     adults: room.rg_ext.capacity,
                     rateKey: room.name,
                     boardName: room.name
                 }]
-    
+
             }))
         }))
-        return { jsonFormat: transformData, lastText };
+        return { jsonFormat: cleanData(transformData), lastText };
     } catch (error) {
         console.log("texto", data)
         return { jsonFormat: [], lastText: "" };
@@ -122,23 +145,23 @@ function readLargeFile(filePath) {
 
 exports.GetRatehawhotel = async (req, res) => {
     try {
-        const data = {
-            "inventory": "all",
-            "language": "en"
-        }
-        const result = await axios({
-            method: 'POST',
-            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
-                'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
-            },
-            data: JSON.stringify(data)
-        })
-        const url = result.data.data.url;
+        // const data = {
+        //     "inventory": "all",
+        //     "language": "en"
+        // }
+        // const result = await axios({
+        //     method: 'POST',
+        //     url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+        //         'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+        //     },
+        //     data: JSON.stringify(data)
+        // })
+        // const url = result.data.data.url;
 
-        // const url = "https://partner-feedora.s3.eu-central-1.amazonaws.com/af/feed_en.json.zst"
+        const url = "https://partner-feedora.s3.eu-central-1.amazonaws.com/af/feed_en.json.zst"
         const dir = "../files";
         fs.mkdirSync(dir, { recursive: true });
 
