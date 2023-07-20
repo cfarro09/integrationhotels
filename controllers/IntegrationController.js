@@ -54,31 +54,36 @@ function deleteDir(filePath) {
 }
 
 const processChunk = (data) => {
-    const listObj = data.split(/\n/);
-    const lastText = listObj.pop();
-    const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
-
-    const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
-        code: null,
-        name: hotel.name,
-        address: hotel.address,
-        email: hotel.email,
-        phone: hotel.phone,
-        city: "",
-        description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
-        rooms: hotel.room_groups?.map(room => ({
-            code: room.room_group_id + "",
-            name: room.name,
-            rates: [{
-                price: hotel.metapolicy_struct.check_in_check_out.price,
-                adults: room.rg_ext.capacity,
-                rateKey: room.name,
-                boardName: room.name
-            }]
-
+    try {
+        const listObj = data.split(/\n/);
+        const lastText = listObj.pop();
+        const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
+    
+        const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
+            code: null,
+            name: hotel.name,
+            address: hotel.address,
+            email: hotel.email,
+            phone: hotel.phone,
+            city: "",
+            description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
+            rooms: hotel.room_groups?.map(room => ({
+                code: room.room_group_id + "",
+                name: room.name,
+                rates: [{
+                    price: hotel.metapolicy_struct.check_in_check_out.price,
+                    adults: room.rg_ext.capacity,
+                    rateKey: room.name,
+                    boardName: room.name
+                }]
+    
+            }))
         }))
-    }))
-    return { jsonFormat: transformData, lastText };
+        return { jsonFormat: transformData, lastText };
+    } catch (error) {
+        console.log(data)
+        return { jsonFormat: [], lastText: "" };
+    }
 }
 
 function readLargeFile(filePath) {
