@@ -60,10 +60,9 @@ const connectBD = () => {
     return new Promise((resolve, reject) => {
         const connection1 = mysql.createConnection({
             host: '89.117.72.104',
-            user: 'root',
-            password: 'Enjoy2023',
+            user: 'tu_usuario',
+            password: 'tu_contrasena',
             database: 'crmenjoy',
-            // port: 3306
         });
 
         connection1.connect((err) => {
@@ -237,6 +236,7 @@ exports.GetRatehawhotel = async (req, res) => {
         await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
         await readLargeFile(namefile.replace(".zst", ""));
+        // await readLargeFile("../files/1689817805567.json");
 
         deleteDir(dir)
 
