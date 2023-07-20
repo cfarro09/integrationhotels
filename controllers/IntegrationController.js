@@ -2,83 +2,115 @@ const axios = require('axios')
 const fs = require('fs');
 const crypto = require('crypto');
 const path = require('path');
-const ZstdCodec = require('zstd-codec').ZstdCodec;
+const { exec } = require('child_process')
 
-const initzstd = async () => {
+function decompressZstFile(filePath, output) {
     return new Promise((resolve, reject) => {
-        ZstdCodec.run(zstd => {
-            const streaming = new zstd.Streaming();
-            resolve(streaming)
-
+        exec(`unzstd ${filePath} -o ${output}`, (error, stdout, stderr) => {
+            if (error) {
+                console.warn(error);
+                reject(error);
+            }
+            resolve(stdout ? stdout : stderr);
         });
-    })
+    });
 }
 
-const unzipZstFileInBlocks = async (uint8Array, initialBlockSize = 512) => {
-    const streaming = await initzstd();
+function writeFileAsync(filePath, data) {
+    return new Promise((resolve, reject) => {
+        const writeStream = fs.createWriteStream(filePath);
 
-    try {
-        let offset = 0;
-        let blockSize = initialBlockSize;
-
-        while (offset < uint8Array.length) {
-            // Calcular el tamaño del bloque actual
-            const currentBlockSize = Math.min(blockSize, uint8Array.length - offset);
-
-            // Descomprimir el bloque actual
-            const compressedBlock = uint8Array.slice(offset, offset + currentBlockSize);
-            console.log("compressedBlock", compressedBlock)
-            const uncompressedBlock = streaming.decompress(compressedBlock);
-
-            // Procesar el bloque descomprimido aquí
-            console.log('Procesando bloque:', uncompressedBlock);
-
-            // Incrementar el desplazamiento para el siguiente bloque
-            offset += currentBlockSize;
-        }
-    } catch (error) {
-        console.error('Error al descomprimir los bloques:', error);
-    }
-};
-
-const downloadFile = async (url) => {
-    const rootDir = path.resolve(__dirname); // Obtiene la ruta del directorio raíz del proyecto
-    const destination = `${new Date().toISOString()}.zst`;
-    const zstFilePath = path.join(rootDir, "..", destination);
-
-    console.log("downloading...")
-    const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'arraybuffer', // Important: This ensures the response is treated as binary data
-    });
-
-    const compressedData = new Uint8Array(response.data);
-    console.log("unziping...")
-
-    unzipZstFileInBlocks(compressedData, 1024)
-        .then((blocks) => {
-            console.log("blocks", blocks)
-            console.log('Bloques descomprimidos:', blocks.length);
-            // Procesar cada bloque individualmente o guardarlos en archivos según tus necesidades.
-        })
-        .catch((error) => {
-            console.error(error);
+        // Evento de escritura finalizada
+        writeStream.on('finish', () => {
+            resolve();
         });
-    // const uncompressedData = zstd.(compressedData);
 
-    // const absoluteDestination = path.resolve(zstFilePath);
+        writeStream.on('error', (err) => {
+            reject(err);
+        });
+        writeStream.write(data);
 
-    // // Crear el directorio (si no existe) antes de guardar el archivo
-    // const destinationDir = path.dirname(absoluteDestination);
-    // fs.mkdir(destinationDir, { recursive: true });
+        writeStream.end();
+    });
+}
 
-    // console.log("downloaded..", absoluteDestination);
+function deleteDir(filePath) {
+    const files = fs.readdirSync(filePath);
 
-    // // Utilizar fs.writeFile en lugar de fs.writeFileSync para escribir el buffer en el archivo
-    // fs.writeFile(absoluteDestination, uncompressedData);
+    for (const file of files) {
+        const currentPath = path.join(filePath, file);
 
-};
+        if (fs.lstatSync(currentPath).isDirectory()) {
+            // Si es un subdirectorio, eliminarlo de manera recursiva
+            removeDirRecursive(currentPath);
+        } else {
+            // Si es un archivo, eliminarlo
+            fs.unlinkSync(currentPath);
+        }
+    }
+
+    // Después de eliminar todos los archivos y subdirectorios, eliminar el directorio actual
+    fs.rmdirSync(filePath);
+}
+
+const processChunk = (data) => {
+    const listObj = data.split(/\n/);
+    const lastText = listObj.pop();
+    const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
+
+    const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
+        code: null,
+        name: hotel.name,
+        address: hotel.address,
+        email: hotel.email,
+        phone: hotel.phone,
+        city: "",
+        description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
+        rooms: hotel.room_groups?.map(room => ({
+            code: room.room_group_id + "",
+            name: room.name,
+            rates: [{
+                price: hotel.metapolicy_struct.check_in_check_out.price,
+                adults: room.rg_ext.capacity,
+                rateKey: room.name,
+                boardName: room.name
+            }]
+
+        }))
+    }))
+    return { jsonFormat: transformData, lastText };
+}
+
+function readLargeFile(filePath) {
+    let lastText1 = "";
+    let allData = [];
+    let index = 0;
+    return new Promise((resolve, reject) => {
+        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8' });
+
+        // Evento de datos: se dispara cuando se lee un chunk del archivo
+        readableStream.on('data', (chunk) => {
+            // Aquí puedes procesar el chunk leído, por ejemplo, imprimirlo en la consola
+            if (index === 0) {
+                const { lastText, jsonFormat } = processChunk(lastText1 + chunk)
+                lastText1 = lastText;
+                allData = jsonFormat //[...allData, ...jsonFormat];
+            }
+            index++;
+        });
+
+        // Evento de finalización: se dispara cuando se ha leído todo el archivo
+        readableStream.on('end', () => {
+            resolve(allData);
+        });
+
+        // Evento de error: se dispara si ocurre algún error durante la lectura
+        readableStream.on('error', (err) => {
+            console.error('Error al leer el archivo:', err);
+            reject(err);
+        });
+    });
+}
 
 exports.GetRatehawhotel = async (req, res) => {
     try {
@@ -97,8 +129,22 @@ exports.GetRatehawhotel = async (req, res) => {
             data: JSON.stringify(data)
         })
         const url = result.data.data.url;
-        await downloadFile(url, `${new Date().toISOString()}.zst`)
-        return res.json(result.data.data.url)
+
+        // const url = "https://partner-feedora.s3.eu-central-1.amazonaws.com/af/feed_en.json.zst"
+        const dir = "./files";
+        fs.mkdirSync(dir, { recursive: true });
+
+        const namefile = `${dir}/${new Date().getTime()}.json.zst`;
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+
+        await writeFileAsync(namefile, response.data)
+
+        await decompressZstFile(namefile, namefile.replace(".zst", ""))
+
+        const data1 = await readLargeFile(namefile)
+
+        deleteDir(dir)
+        return res.json(data1)
 
     } catch (error) {
         console.log(error)
@@ -106,33 +152,6 @@ exports.GetRatehawhotel = async (req, res) => {
             error: error
         })
     }
-
-}
-
-
-exports.GetRatehawhotelIncremental = async (req, res) => {
-    try {
-        const data = {
-            "language": "en"
-        }
-        const result = await axios({
-            method: 'POST',
-            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
-                'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
-            },
-            data: JSON.stringify(data)
-        })
-        return res.json(result.data)
-
-    } catch (error) {
-        return res.status(400).json({
-            error: error
-        })
-    }
-
 }
 
 exports.GetHotelBeds = async (req, res) => {
