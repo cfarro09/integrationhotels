@@ -3,7 +3,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const path = require('path');
 const { exec } = require('child_process')
-
+const mysql = require('mysql2');
+let XidHotel = 1;
+let XidRoom = 1;
+let XidRate = 1;
 function decompressZstFile(filePath, output) {
     return new Promise((resolve, reject) => {
         exec(`unzstd ${filePath} -o ${output}`, (error, stdout, stderr) => {
@@ -52,31 +55,85 @@ function deleteDir(filePath) {
     // Después de eliminar todos los archivos y subdirectorios, eliminar el directorio actual
     fs.rmdirSync(filePath);
 }
+let connection = null;
+const connectBD = () => {
+    return new Promise((resolve, reject) => {
+        const connection1 = mysql.createConnection({
+            host: '89.117.72.104',
+            user: 'tu_usuario',
+            password: 'tu_contrasena',
+            database: 'crmenjoy',
+            // port: 3306
+        });
 
-const cleanData = (data) => {
+        connection1.connect((err) => {
+            if (err) {
+                console.error('Error al conectarse a la base de datos:', err);
+                return;
+            }
+            resolve(connection1)
+            console.log('¡Conexión a MySQL exitosa!');
+        });
+    })
+}
+
+const cleanData = async (data, proveedor, deletet = false) => {
     const hotels = data.map((hotel, index) => ({
         ...hotel,
-        rooms: undefined,
-        id: index,
+        proveedor,
+        id: (() => {
+            XidHotel++;
+            return XidHotel;
+        })()
     }));
 
-    const rooms1 = data.reduce((acc, item, indexHotel) => ([
+    const rooms1 = hotels.reduce((acc, item, indexHotel) => ([
         ...acc,
         ...(item.rooms?.map(room => ({
             ...room,
-            hotelid: indexHotel
-        })) ?? []).map((room, index) => ({ ...room, id: index }))
-    ]), []);
+            hotelid: item.id
+        })) ?? [])
+    ]), []).map((room, index) => ({
+        ...room, id: (() => {
+            XidRoom++;
+            return XidRoom;
+        })()
+    }));
 
     const rates = rooms1.reduce((acc, item) => ([
         ...acc,
         ...(item.rates?.map(rate => ({
             ...rate,
             roomid: item.id
-        })) ?? []).map((rate, index) => ({ ...rate, id: index }))
-    ]), [])
+        })) ?? [])
+    ]), []).map((rate, index1) => ({
+        ...rate, id: (() => {
+            XidRate++;
+            return XidRate;
+        })()
+    }))
 
-    return { hotels, rooms: rooms1.map(x => ({ ...x, rates: undefined }), rates) }
+    // Llamar al Stored Procedure con parámetros
+    const spName = 'ufn_massive_insert';
+    const parameter1 = JSON.stringify(hotels.map(x => ({...x, rooms: undefined})));
+    const parameter2 = JSON.stringify(rooms1.map(x => ({ ...x, rates: undefined })));
+    const parameter3 = JSON.stringify(rates);
+    const parameter4 = deletet;
+    
+    const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
+
+    return new Promise((resolve, reject) => {
+        connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+            if (err) {
+                console.error('Error al ejecutar el Stored Procedure:', err);
+                return;
+            }
+
+            // Los resultados del SP se encuentran en 'results'
+            console.log('Resultados del Stored Procedure:');
+            resolve()
+        });
+    })
 }
 
 const processChunk = (data) => {
@@ -105,34 +162,34 @@ const processChunk = (data) => {
 
             }))
         }))
-        return { jsonFormat: cleanData(transformData), lastText };
+        cleanData(transformData, "ratehaw")
+        
+        return { lastText };
     } catch (error) {
-        console.log("texto", data)
+        console.log(error)
         return { jsonFormat: [], lastText: "" };
     }
 }
 
 function readLargeFile(filePath) {
     let lastText1 = "";
-    let allData = [];
+    
     let index = 0;
     return new Promise((resolve, reject) => {
-        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8' });
+        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
 
         // Evento de datos: se dispara cuando se lee un chunk del archivo
         readableStream.on('data', (chunk) => {
             // Aquí puedes procesar el chunk leído, por ejemplo, imprimirlo en la consola
-            if (index === 0) {
-                const { lastText, jsonFormat } = processChunk(lastText1 + chunk)
-                lastText1 = lastText;
-                allData = jsonFormat //[...allData, ...jsonFormat];
-            }
+            const { lastText } = processChunk(lastText1 + chunk)
+            lastText1 = lastText;
+            // allData = jsonFormat //[...allData, ...jsonFormat];
             index++;
         });
 
         // Evento de finalización: se dispara cuando se ha leído todo el archivo
         readableStream.on('end', () => {
-            resolve(allData);
+            resolve();
         });
 
         // Evento de error: se dispara si ocurre algún error durante la lectura
@@ -145,6 +202,9 @@ function readLargeFile(filePath) {
 
 exports.GetRatehawhotel = async (req, res) => {
     try {
+        connection = await connectBD();
+
+        await cleanData([], "", true)
         // const data = {
         //     "inventory": "all",
         //     "language": "en"
@@ -161,24 +221,33 @@ exports.GetRatehawhotel = async (req, res) => {
         // })
         // const url = result.data.data.url;
 
-        const url = "https://partner-feedora.s3.eu-central-1.amazonaws.com/af/feed_en.json.zst"
-        const dir = "../files";
-        fs.mkdirSync(dir, { recursive: true });
+        // const dir = "../files";
+        // fs.mkdirSync(dir, { recursive: true });
 
-        const namefile = `${dir}/${new Date().getTime()}.json.zst`;
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        // const namefile = `${dir}/${new Date().getTime()}.json.zst`;
+        // const response = await axios.get(url, { responseType: 'arraybuffer' });
 
-        await writeFileAsync(namefile, response.data)
+        // await writeFileAsync(namefile, response.data)
 
-        await decompressZstFile(namefile, namefile.replace(".zst", ""))
+        // await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
-        const data1 = await readLargeFile(namefile.replace(".zst", ""))
+        // const data1 = await readLargeFile(namefile.replace(".zst", ""));
+        await readLargeFile("../files/1689817805567.json");
 
-        deleteDir(dir)
-        return res.json(data1)
+        // deleteDir(dir)
+
+        // Cerrar la conexión después de obtener los resultados
+        connection.end((err) => {
+            if (err) {
+                console.error('Error al cerrar la conexión:', err);
+                return;
+            }
+            console.log('Conexión cerrada.');
+        });
+        return res.json({ success: true })
 
     } catch (error) {
-        console.log(error)
+        // console.log(error)
         return res.status(400).json({
             error: error
         })
