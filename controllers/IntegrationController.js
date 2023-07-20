@@ -78,6 +78,11 @@ const connectBD = () => {
 }
 
 const cleanData = async (data, proveedor, deletet = false) => {
+    if (deletet) {
+        XidHotel = 1;
+        XidRoom = 1;
+        XidRate = 1;
+    }
     const hotels = data.map((hotel, index) => ({
         ...hotel,
         proveedor,
