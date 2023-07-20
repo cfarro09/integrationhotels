@@ -60,8 +60,8 @@ const connectBD = () => {
     return new Promise((resolve, reject) => {
         const connection1 = mysql.createConnection({
             host: '89.117.72.104',
-            user: 'tu_usuario',
-            password: 'tu_contrasena',
+            user: 'root',
+            password: 'Enjoy2023',
             database: 'crmenjoy',
             // port: 3306
         });
