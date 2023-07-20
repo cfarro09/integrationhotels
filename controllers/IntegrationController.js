@@ -205,36 +205,35 @@ exports.GetRatehawhotel = async (req, res) => {
         connection = await connectBD();
 
         await cleanData([], "", true)
-        // const data = {
-        //     "inventory": "all",
-        //     "language": "en"
-        // }
-        // const result = await axios({
-        //     method: 'POST',
-        //     url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
-        //         'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
-        //     },
-        //     data: JSON.stringify(data)
-        // })
-        // const url = result.data.data.url;
+        const data = {
+            "inventory": "all",
+            "language": "en"
+        }
+        const result = await axios({
+            method: 'POST',
+            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+                'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+            },
+            data: JSON.stringify(data)
+        })
+        const url = result.data.data.url;
 
-        // const dir = "../files";
-        // fs.mkdirSync(dir, { recursive: true });
+        const dir = "../files";
+        fs.mkdirSync(dir, { recursive: true });
 
-        // const namefile = `${dir}/${new Date().getTime()}.json.zst`;
-        // const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const namefile = `${dir}/${new Date().getTime()}.json.zst`;
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
 
-        // await writeFileAsync(namefile, response.data)
+        await writeFileAsync(namefile, response.data)
 
-        // await decompressZstFile(namefile, namefile.replace(".zst", ""))
+        await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
-        // const data1 = await readLargeFile(namefile.replace(".zst", ""));
-        await readLargeFile("../files/1689817805567.json");
+        await readLargeFile(namefile.replace(".zst", ""));
 
-        // deleteDir(dir)
+        deleteDir(dir)
 
         // Cerrar la conexión después de obtener los resultados
         connection.end((err) => {
