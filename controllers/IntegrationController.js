@@ -136,7 +136,7 @@ exports.GetRatehawhotel = async (req, res) => {
         const url = result.data.data.url;
 
         // const url = "https://partner-feedora.s3.eu-central-1.amazonaws.com/af/feed_en.json.zst"
-        const dir = "./files";
+        const dir = "../files";
         fs.mkdirSync(dir, { recursive: true });
 
         const namefile = `${dir}/${new Date().getTime()}.json.zst`;
