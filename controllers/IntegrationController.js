@@ -146,7 +146,7 @@ exports.GetRatehawhotel = async (req, res) => {
 
         await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
-        const data1 = await readLargeFile(namefile)
+        const data1 = await readLargeFile(namefile.replace(".zst", ""))
 
         deleteDir(dir)
         return res.json(data1)
