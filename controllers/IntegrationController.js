@@ -119,11 +119,11 @@ const cleanData = async (data, proveedor, deletet = false) => {
 
     // Llamar al Stored Procedure con parámetros
     const spName = 'ufn_massive_insert';
-    const parameter1 = JSON.stringify(hotels.map(x => ({...x, rooms: undefined})));
+    const parameter1 = JSON.stringify(hotels.map(x => ({ ...x, rooms: undefined })));
     const parameter2 = JSON.stringify(rooms1.map(x => ({ ...x, rates: undefined })));
     const parameter3 = JSON.stringify(rates);
     const parameter4 = deletet;
-    
+
     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
 
     return new Promise((resolve, reject) => {
@@ -167,7 +167,7 @@ const processChunk = (data) => {
             }))
         }))
         cleanData(transformData, "ratehaw")
-        
+
         return { lastText };
     } catch (error) {
         console.log(error)
@@ -177,7 +177,7 @@ const processChunk = (data) => {
 
 function readLargeFile(filePath) {
     let lastText1 = "";
-    
+
     let index = 0;
     return new Promise((resolve, reject) => {
         const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
@@ -204,11 +204,8 @@ function readLargeFile(filePath) {
     });
 }
 
-exports.GetRatehawhotel = async (req, res) => {
+const getRatehawhotel = async () => {
     try {
-        connection = await connectBD();
-
-        await cleanData([], "", true)
         const data = {
             "inventory": "all",
             "language": "en"
@@ -240,25 +237,18 @@ exports.GetRatehawhotel = async (req, res) => {
 
         deleteDir(dir)
 
-        // Cerrar la conexión después de obtener los resultados
-        connection.end((err) => {
-            if (err) {
-                console.error('Error al cerrar la conexión:', err);
-                return;
-            }
-            console.log('Conexión cerrada.');
-        });
-        return res.json({ success: true })
+        return { success: true }
 
     } catch (error) {
         // console.log(error)
-        return res.status(400).json({
+        return {
             error: error
-        })
+        }
     }
 }
 
-exports.GetHotelBeds = async (req, res) => {
+
+const getHotelBeds = async () => {
     try {
         const apiKey = "5869350eadd972f2fa41fe06b27473cd";
         const secret = "43e5240cf6";
@@ -292,11 +282,22 @@ exports.GetHotelBeds = async (req, res) => {
             rooms: []
         }))
 
+        const fechaActual = new Date();
+        const fechaManana = new Date();
+
+        // Agregar un día para obtener la fecha de mañana
+        fechaManana.setDate(fechaManana.getDate() + 1);
+
+        // Obtener las partes de la fecha en UTC
+        const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
+        const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
+
+
         if (dataHotels.length > 0) {
             const paramsRooms = {
                 "stay": {
-                    "checkIn": "2023-07-18",
-                    "checkOut": "2023-07-19",
+                    "checkIn": fechaActualUTC,
+                    "checkOut": fechaMananaUTC,
                 },
                 "occupancies": [
                     {
@@ -331,12 +332,43 @@ exports.GetHotelBeds = async (req, res) => {
                 }))
             }
         }
-        return res.json(dataHotels)
+        await cleanData(dataHotels, "hotelbeds")
+        return { success: true }
 
 
     } catch (error) {
-        // console.log(error)
-        return res.status(400).json(error)
+        console.log(error?.response?.data || error)
+        return { success: false }
     }
+}
 
+
+exports.GetRatehawhotel = async (req, res) => {
+    const rr = await getRatehawhotel();
+    return res.json(rr)
+}
+
+exports.GetHotelBeds = async (req, res) => {
+    const rr = await getHotelBeds();
+    return res.json(rr)
+}
+
+exports.ExecAll = async (req, res) => {
+    connection = await connectBD();
+
+    await cleanData([], "", true)
+
+    const resHotel = await getHotelBeds();
+    const resRateHaw = await getRatehawhotel();
+
+    // Cerrar la conexión después de obtener los resultados
+    connection.end((err) => {
+        if (err) {
+            console.error('Error al cerrar la conexión:', err);
+            return;
+        }
+        console.log('Conexión cerrada.');
+    });
+
+    return res.json({ resHotel, resRateHaw })
 }
