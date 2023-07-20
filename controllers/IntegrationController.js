@@ -81,7 +81,7 @@ const processChunk = (data) => {
         }))
         return { jsonFormat: transformData, lastText };
     } catch (error) {
-        console.log(data)
+        console.log("texto", data)
         return { jsonFormat: [], lastText: "" };
     }
 }
