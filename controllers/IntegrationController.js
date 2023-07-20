@@ -59,7 +59,8 @@ const processChunk = (data) => {
         const lastText = listObj.pop();
         const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
     
-        const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
+        const transformData = jsonFormat.filter(hotel => hotel.name).map((hotel, iHotel) => ({
+            id: iHotel + 1,
             code: null,
             name: hotel.name,
             address: hotel.address,
@@ -67,10 +68,12 @@ const processChunk = (data) => {
             phone: hotel.phone,
             city: "",
             description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
-            rooms: hotel.room_groups?.map(room => ({
+            rooms: hotel.room_groups?.map((room, iRoom) => ({
+                id: iHotel + iRoom + 1,
                 code: room.room_group_id + "",
                 name: room.name,
                 rates: [{
+                    id: iHotel + iRoom + 1,
                     price: hotel.metapolicy_struct.check_in_check_out.price,
                     adults: room.rg_ext.capacity,
                     rateKey: room.name,
