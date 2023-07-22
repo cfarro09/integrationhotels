@@ -27,9 +27,9 @@ app.listen(PORT, '0.0.0.0', () => {
 console.log(`Corriendo en http://localhost:${PORT}`);
 
 // Patrón cron para que se ejecute a las 10:00 PM todos los días (hora 22, minuto 0)
-const patrónCron = '20 1 * * *';
+const patronCron = '20 1 * * *';
 
-cron.schedule(patrónCron, () => {
+cron.schedule(patronCron, () => {
 	console.log("new Date()", new Date().toISOString());
 	ExecAll()
 });

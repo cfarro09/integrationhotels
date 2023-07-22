@@ -319,6 +319,7 @@ const getHotelBeds = async () => {
             })
 
             const dataHotelRooms = resultRooms.data.hotels.hotels;
+            console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels.length)
             for (const element of dataHotels) {
                 element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                     ...room,
@@ -369,5 +370,5 @@ exports.ExecAll = async (req, res) => {
         console.log('Conexión cerrada.');
     });
 
-    return res.json({ resHotel, resRateHaw })
+    return res?.json({ resHotel, resRateHaw }) || ""
 }
