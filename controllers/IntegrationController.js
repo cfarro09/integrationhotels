@@ -319,7 +319,6 @@ const getHotelBeds = async () => {
             })
 
             const dataHotelRooms = resultRooms.data.hotels.hotels;
-
             for (const element of dataHotels) {
                 element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                     ...room,

@@ -33,3 +33,5 @@ cron.schedule(patrónCron, () => {
 	console.log("new Date()", new Date().toISOString());
 	ExecAll()
 });
+
+ExecAll()
