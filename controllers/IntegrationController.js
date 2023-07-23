@@ -410,7 +410,7 @@ exports.ExecAll = async (req, res) => {
             }
             console.log('Conexión cerrada.');
         });
-    }, 5000);
+    }, 60000);
 
     return res?.json({ resHotel, resRateHaw }) || ""
 }
