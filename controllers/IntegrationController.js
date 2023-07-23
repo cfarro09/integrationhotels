@@ -308,7 +308,7 @@ const getHotelBeds = async () => {
             description: x.description?.content,
             address: x.address?.content ?? "",
             city: x.city?.content,
-            images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`),
+            images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
             email: x.email,
             phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
             rooms: []
