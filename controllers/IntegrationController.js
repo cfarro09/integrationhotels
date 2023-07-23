@@ -56,6 +56,9 @@ function deleteDir(filePath) {
     fs.rmdirSync(filePath);
 }
 let connection = null;
+let connection1 = null;
+
+
 const connectBD = () => {
     return new Promise((resolve, reject) => {
         const connection1 = mysql.createConnection({
@@ -63,6 +66,26 @@ const connectBD = () => {
             user: 'tu_usuario',
             password: 'tu_contrasena',
             database: 'crmenjoy',
+        });
+
+        connection1.connect((err) => {
+            if (err) {
+                console.error('Error al conectarse a la base de datos:', err);
+                return;
+            }
+            resolve(connection1)
+            console.log('¡Conexión a MySQL exitosa!');
+        });
+    })
+}
+
+const connectBD1 = () => {
+    return new Promise((resolve, reject) => {
+        const connection1 = mysql.createConnection({
+            host: '89.117.72.104',
+            user: 'tu_usuario',
+            password: 'tu_contrasena',
+            database: 'crmenjoyperu',
         });
 
         connection1.connect((err) => {
@@ -132,10 +155,17 @@ const cleanData = async (data, proveedor, deletet = false) => {
                 console.error('Error al ejecutar el Stored Procedure:', err);
                 return;
             }
-
             // Los resultados del SP se encuentran en 'results'
             console.log('Resultados del Stored Procedure:');
-            resolve()
+            connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+                if (err) {
+                    console.error('Error al ejecutar el Stored Procedure:', err);
+                    return;
+                }
+                // Los resultados del SP se encuentran en 'results'
+                console.log('Resultados del Stored Procedure:');
+                resolve()
+            });
         });
     })
 }
@@ -357,6 +387,7 @@ exports.GetHotelBeds = async (req, res) => {
 
 exports.ExecAll = async (req, res) => {
     connection = await connectBD();
+    connection1 = await connectBD1();
 
     await cleanData([], "", true)
 
@@ -365,6 +396,13 @@ exports.ExecAll = async (req, res) => {
 
     // Cerrar la conexión después de obtener los resultados
     connection.end((err) => {
+        if (err) {
+            console.error('Error al cerrar la conexión:', err);
+            return;
+        }
+        console.log('Conexión cerrada.');
+    });
+    connection1.end((err) => {
         if (err) {
             console.error('Error al cerrar la conexión:', err);
             return;
