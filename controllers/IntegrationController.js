@@ -395,20 +395,22 @@ exports.ExecAll = async (req, res) => {
     const resRateHaw = await getRatehawhotel();
 
     // Cerrar la conexión después de obtener los resultados
-    connection.end((err) => {
-        if (err) {
-            console.error('Error al cerrar la conexión:', err);
-            return;
-        }
-        console.log('Conexión cerrada.');
-    });
-    connection1.end((err) => {
-        if (err) {
-            console.error('Error al cerrar la conexión:', err);
-            return;
-        }
-        console.log('Conexión cerrada.');
-    });
+    setTimeout(() => {
+        connection.end((err) => {
+            if (err) {
+                console.error('Error al cerrar la conexión:', err);
+                return;
+            }
+            console.log('Conexión cerrada.');
+        });
+        connection1.end((err) => {
+            if (err) {
+                console.error('Error al cerrar la conexión1:', err);
+                return;
+            }
+            console.log('Conexión cerrada.');
+        });
+    }, 5000);
 
     return res?.json({ resHotel, resRateHaw }) || ""
 }
