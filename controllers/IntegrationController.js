@@ -152,6 +152,7 @@ const processChunk = (data) => {
             address: hotel.address,
             email: hotel.email,
             phone: hotel.phone,
+            images: hotel.images.map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: "",
             description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
             rooms: hotel.room_groups?.map((room) => ({
@@ -262,7 +263,7 @@ const getHotelBeds = async () => {
             'Content-Type': 'application/json',
         }
         const fields = [
-            "code", "name", "phones", "description", "city", "email", "address"
+            "code", "name", "phones", "description", "city", "email", "address", "images"
         ]
 
         const resultHotels = await axios({
@@ -277,6 +278,7 @@ const getHotelBeds = async () => {
             description: x.description?.content,
             address: x.address?.content ?? "",
             city: x.city?.content,
+            images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`),
             email: x.email,
             phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
             rooms: []
