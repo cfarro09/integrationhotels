@@ -266,7 +266,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
                 url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
                 headers: tokenActivities,
                 data: JSON.stringify({
-                    "filters": destinations.slice(i * 50, (i + 1) * 50).map(x => ({
+                    "filters": destinations.slice(i * 100, (i + 1) * 100).map(x => ({
                         searchFilterItems: [{ "type": "destination", "value": x.code }]
                     })),
                     "from": fechaMananaUTC,
