@@ -250,39 +250,54 @@ const getTransfers = async (tokenTransfer, fechaActualUTC, fechaMananaUTC) => {
     }
 }
 
+async function fetchActivitiesData(i, filters, fechaActualUTC, fechaMananaUTC, tokenActivities) {
+    const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
+    const ressss = await axios({
+        method: 'POST',
+        url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
+        headers: tokenActivities,
+        data: JSON.stringify({
+            // "filters": destinations.slice(i * 70, (i + 1) * 70).map(x => ({
+            //     searchFilterItems: [{ "type": "destination", "value": x.code }]
+            // })),
+            filters,
+            "from": fechaActualUTC,
+            "to": fechaMananaUTC,
+            "paxes": [{
+                "age": 30
+            }],
+            "language": "es",
+            "pagination": {
+                "itemsPerPage": 100,
+                "page": 1
+            },
+        })
+    });
+
+    return ressss.data.activities;
+}
+
 const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaMananaUTC) => {
     const destinationsoff = await readFile("../important/destinations.json");
     const destinations = destinationsoff.filter(x => !!x.destinations).reduce((acc, item) => [
         ...acc,
         ...item.destinations
     ], []);
-    console.log("destinations", destinations.length)
-    const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
+
     try {
-        let activitiesAll = [];
-        for (let i = 0; i < 12; i++) {
-            const ressss = await axios({
-                method: 'POST',
-                url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
-                headers: tokenActivities,
-                data: JSON.stringify({
-                    "filters": destinations.slice(i * 70, (i + 1) * 70).map(x => ({
-                        searchFilterItems: [{ "type": "destination", "value": x.code }]
-                    })),
-                    "from": fechaActualUTC,
-                    "to": fechaMananaUTC,
-                    "paxes": [{
-                        "age": 30
-                    }],
-                    "language": "es",
-                    "pagination": {
-                        "itemsPerPage": 100,
-                        "page": 1
-                    },
-                })
-            });
-            activitiesAll = [...activitiesAll, ...ressss.data.activities]
-        }
+        const totalRequests = 12;
+
+        // Realizar las solicitudes de manera asíncrona y almacenar las respuestas en activitiesAll
+        const fetchPromises = Array.from({ length: totalRequests }, (_, i) => fetchActivitiesData(i, destinations.slice(i * 70, (i + 1) * 70).map(x => ({
+            searchFilterItems: [{ "type": "destination", "value": x.code }]
+        })), fechaActualUTC, fechaMananaUTC, tokenActivities));
+        const responses = await Promise.all(fetchPromises);
+
+        // Combinar todas las respuestas en un solo array
+        const activitiesAll = responses.reduce((acc, data) => [...acc, ...data], []);
+
+        console.log("destinations", destinations.length)
+
         let dataCleaned = activitiesAll.map(x => ({
             id: (() => ++XidActivity)(),
             country: x.country?.name,
