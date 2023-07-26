@@ -15,32 +15,32 @@ let connection = null;
 let connection1 = null;
 
 const insertMassiveActivities = async (activities, modalities, amounts, deletet = false) => {
-     // Llamar al Stored Procedure con parámetros
-     const spName = 'ufn_activity_massive_insert';
-     const parameter1 = JSON.stringify(activities);
-     const parameter2 = JSON.stringify(modalities);
-     const parameter3 = JSON.stringify(amounts);
-     const parameter4 = deletet;
- 
-     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
- 
-     return new Promise((resolve, reject) => {
-         connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-             if (err) {
-                 console.error('Error al ejecutar el Stored Procedure:', err);
-                 return;
-             }
-             connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-                 if (err) {
-                     console.error('Error al ejecutar el Stored Procedure:', err);
-                     return;
-                 }
-                 // Los resultados del SP se encuentran en 'results'
-                 console.log('Resultados del Stored Procedure:');
-                 resolve()
-             });
-         });
-     })
+    // Llamar al Stored Procedure con parámetros
+    const spName = 'ufn_activity_massive_insert';
+    const parameter1 = JSON.stringify(activities);
+    const parameter2 = JSON.stringify(modalities);
+    const parameter3 = JSON.stringify(amounts);
+    const parameter4 = deletet;
+
+    const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
+
+    return new Promise((resolve, reject) => {
+        connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+            if (err) {
+                console.error('Error al ejecutar el Stored Procedure:', err);
+                return;
+            }
+            connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+                if (err) {
+                    console.error('Error al ejecutar el Stored Procedure:', err);
+                    return;
+                }
+                // Los resultados del SP se encuentran en 'results'
+                console.log('Resultados del Stored Procedure:');
+                resolve()
+            });
+        });
+    })
 }
 
 const cleanData = async (data, proveedor, deletet = false) => {
@@ -256,33 +256,35 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
         ...acc,
         ...item.destinations
     ], []);
-    const destinationsFilter = destinations.slice(0, 200).map(x => ({
-        searchFilterItems: [{ "type": "destination", "value": x.code }]
-    }))
     const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
     try {
-        const ressss = await axios({
-            method: 'POST',
-            url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
-            headers: tokenActivities,
-            data: JSON.stringify({
-                "filters": destinationsFilter,
-                "from": fechaMananaUTC,
-                "to": fechaMananaUTC,
-                "paxes": [{
-                    "age": 30
-                }],
-                "language": "es",
-                "pagination": {
-                    "itemsPerPage": 100,
-                    "page": 1
-                },
-            })
-        })
-
-        let dataCleaned = ressss.data.activities.map(x => ({
+        let activitiesAll = [];
+        for (let i = 0; i < 10; i++) {
+            const ressss = await axios({
+                method: 'POST',
+                url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
+                headers: tokenActivities,
+                data: JSON.stringify({
+                    "filters": destinations.slice(i * 150, (i + 1) * 150).map(x => ({
+                        searchFilterItems: [{ "type": "destination", "value": x.code }]
+                    })),
+                    "from": fechaMananaUTC,
+                    "to": fechaMananaUTC,
+                    "paxes": [{
+                        "age": 30
+                    }],
+                    "language": "es",
+                    "pagination": {
+                        "itemsPerPage": 100,
+                        "page": 1
+                    },
+                })
+            });
+            activitiesAll = [...activitiesAll, ...ressss.data.activities]
+        }
+        let dataCleaned = activitiesAll.map(x => ({
             id: (() => ++XidActivity)(),
-            country: x.country.name,
+            country: x.country?.name,
             countrycode: x.country.code,
             currency: x.currencyName,
             description: x.content.description,
@@ -356,7 +358,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
                 url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
                 headers: authorizationHotelBed(apiKey, secret),
             })
-    
+
             const dataHotels = resultHotels.data.hotels.map(x => ({
                 code: x.code,
                 name: x.name.content,
@@ -368,7 +370,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
                 phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
                 rooms: []
             }))
-    
+
             if (dataHotels.length > 0) {
                 const paramsRooms = {
                     "stay": {
@@ -386,14 +388,14 @@ const getHotelBeds = async (hotelstrigger = true) => {
                         "hotel": dataHotels.map(x => x.code)
                     }
                 }
-    
+
                 const resultRooms = await axios({
                     method: 'POST',
                     url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
                     headers: authorizationHotelBed(apiKey, secret),
                     data: JSON.stringify(paramsRooms)
                 })
-    
+
                 const dataHotelRooms = resultRooms.data.hotels.hotels;
                 console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels.length)
                 for (const element of dataHotels) {
@@ -431,6 +433,7 @@ exports.GetHotelBeds = async (req, res) => {
 }
 
 exports.ExecAll = async (req, res) => {
+    console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
 
