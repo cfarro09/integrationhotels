@@ -251,7 +251,7 @@ const getTransfers = async (tokenTransfer, fechaActualUTC, fechaMananaUTC) => {
 }
 
 const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaMananaUTC) => {
-    const destinationsoff = await readFile("../files/destinations.json");
+    const destinationsoff = await readFile("../important/destinations.json");
     const destinations = destinationsoff.filter(x => !!x.destinations).reduce((acc, item) => [
         ...acc,
         ...item.destinations
