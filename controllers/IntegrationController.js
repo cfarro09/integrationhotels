@@ -222,10 +222,10 @@ const getRatehawhotel = async () => {
 }
 
 const getTransfers = async (tokenTransfer, fechaActualUTC, fechaMananaUTC) => {
-    // await getRoutesSync(tokenTransfer)
+    await getRoutesSync(tokenTransfer)
 
     try {
-        let routesJson = await readFile("../files/routes.json");
+        let routesJson = await readFile("../important/routes.json");
         routesJson = routesJson.filter(x => !!x.routes).reduce((acc, item) => [
             ...acc,
             ...item.routes
@@ -320,7 +320,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
     }
 }
 
-const getHotelBeds = async () => {
+const getHotelBeds = async (hotelstrigger = true) => {
     try {
         const fechaActual = new Date();
         const fechaManana = new Date();
@@ -348,66 +348,68 @@ const getHotelBeds = async () => {
 
         getDestinationsActivities(tokenActivities, fechaActualUTC, fechaMananaUTC);
 
-        // // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
+        // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
 
-        const resultHotels = await axios({
-            method: 'GET',
-            url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
-            headers: authorizationHotelBed(apiKey, secret),
-        })
-
-        const dataHotels = resultHotels.data.hotels.map(x => ({
-            code: x.code,
-            name: x.name.content,
-            description: x.description?.content,
-            address: x.address?.content ?? "",
-            city: x.city?.content,
-            images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
-            email: x.email,
-            phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
-            rooms: []
-        }))
-
-        if (dataHotels.length > 0) {
-            const paramsRooms = {
-                "stay": {
-                    "checkIn": fechaActualUTC,
-                    "checkOut": fechaMananaUTC,
-                },
-                "occupancies": [
-                    {
-                        "rooms": 1,
-                        "adults": 2,
-                        "children": 0
+        if (hotelstrigger) {
+            const resultHotels = await axios({
+                method: 'GET',
+                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
+                headers: authorizationHotelBed(apiKey, secret),
+            })
+    
+            const dataHotels = resultHotels.data.hotels.map(x => ({
+                code: x.code,
+                name: x.name.content,
+                description: x.description?.content,
+                address: x.address?.content ?? "",
+                city: x.city?.content,
+                images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
+                email: x.email,
+                phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
+                rooms: []
+            }))
+    
+            if (dataHotels.length > 0) {
+                const paramsRooms = {
+                    "stay": {
+                        "checkIn": fechaActualUTC,
+                        "checkOut": fechaMananaUTC,
+                    },
+                    "occupancies": [
+                        {
+                            "rooms": 1,
+                            "adults": 2,
+                            "children": 0
+                        }
+                    ],
+                    "hotels": {
+                        "hotel": dataHotels.map(x => x.code)
                     }
-                ],
-                "hotels": {
-                    "hotel": dataHotels.map(x => x.code)
+                }
+    
+                const resultRooms = await axios({
+                    method: 'POST',
+                    url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
+                    headers: authorizationHotelBed(apiKey, secret),
+                    data: JSON.stringify(paramsRooms)
+                })
+    
+                const dataHotelRooms = resultRooms.data.hotels.hotels;
+                console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels.length)
+                for (const element of dataHotels) {
+                    element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
+                        ...room,
+                        rates: room.rates.map(rate => ({
+                            price: rate.net,
+                            boardName: rate.boardName,
+                            adults: rate.adults,
+                            rateKey: rate.rateKey,
+                        }))
+                    }))
                 }
             }
-
-            const resultRooms = await axios({
-                method: 'POST',
-                url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
-                headers: authorizationHotelBed(apiKey, secret),
-                data: JSON.stringify(paramsRooms)
-            })
-
-            const dataHotelRooms = resultRooms.data.hotels.hotels;
-            console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels.length)
-            for (const element of dataHotels) {
-                element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
-                    ...room,
-                    rates: room.rates.map(rate => ({
-                        price: rate.net,
-                        boardName: rate.boardName,
-                        adults: rate.adults,
-                        rateKey: rate.rateKey,
-                    }))
-                }))
-            }
+            await cleanData(dataHotels, "hotelbeds")
         }
-        await cleanData(dataHotels, "hotelbeds")
         return { success: true }
 
 

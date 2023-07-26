@@ -68,7 +68,7 @@ exports.getDestinationsSync = async (tokenActivities) => {
 
 
 exports.getRoutesSync = async (tokenTransfer) => {
-    const destinationsoff = await readFile("../files/destinations.json");
+    const destinationsoff = await readFile("../important/destinations.json");
     const destinations = destinationsoff.filter(x => !!x.destinations).reduce((acc, item) => [
         ...acc,
         ...item.destinations
@@ -81,5 +81,5 @@ exports.getRoutesSync = async (tokenTransfer) => {
     //     [item.country]: item
     // }), {})
 
-    await writeFileAsync("../files/routes.json", JSON.stringify(resCountries))
+    await writeFileAsync("../important/routes.json", JSON.stringify(resCountries))
 }
