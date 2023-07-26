@@ -260,13 +260,13 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
     const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
     try {
         let activitiesAll = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 12; i++) {
             const ressss = await axios({
                 method: 'POST',
                 url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
                 headers: tokenActivities,
                 data: JSON.stringify({
-                    "filters": destinations.slice(i * 100, (i + 1) * 100).map(x => ({
+                    "filters": destinations.slice(i * 70, (i + 1) * 70).map(x => ({
                         searchFilterItems: [{ "type": "destination", "value": x.code }]
                     })),
                     "from": fechaActualUTC,
