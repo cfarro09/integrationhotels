@@ -256,6 +256,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
         ...acc,
         ...item.destinations
     ], []);
+    console.log("destinations", destinations.length)
     const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
     try {
         let activitiesAll = [];
@@ -265,7 +266,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
                 url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
                 headers: tokenActivities,
                 data: JSON.stringify({
-                    "filters": destinations.slice(i * 150, (i + 1) * 150).map(x => ({
+                    "filters": destinations.slice(i * 50, (i + 1) * 50).map(x => ({
                         searchFilterItems: [{ "type": "destination", "value": x.code }]
                     })),
                     "from": fechaMananaUTC,
