@@ -336,7 +336,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
         // Obtener las partes de la fecha en UTC
         const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
         const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
-        const fechaPasadoUTC = fechaManana.toISOString().slice(0, 10);
+        const fechaPasadoUTC = fechapasado.toISOString().slice(0, 10);
 
         const apiKey = "5869350eadd972f2fa41fe06b27473cd";
         const secret = "43e5240cf6";
