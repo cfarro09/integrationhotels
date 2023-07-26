@@ -327,13 +327,16 @@ const getHotelBeds = async (hotelstrigger = true) => {
     try {
         const fechaActual = new Date();
         const fechaManana = new Date();
+        const fechapasado = new Date();
 
         // Agregar un día para obtener la fecha de mañana
         fechaManana.setDate(fechaManana.getDate() + 1);
+        fechapasado.setDate(fechapasado.getDate() + 2);
 
         // Obtener las partes de la fecha en UTC
         const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
         const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
+        const fechaPasadoUTC = fechaManana.toISOString().slice(0, 10);
 
         const apiKey = "5869350eadd972f2fa41fe06b27473cd";
         const secret = "43e5240cf6";
@@ -375,8 +378,8 @@ const getHotelBeds = async (hotelstrigger = true) => {
             if (dataHotels.length > 0) {
                 const paramsRooms = {
                     "stay": {
-                        "checkIn": fechaActualUTC,
-                        "checkOut": fechaMananaUTC,
+                        "checkIn": fechaMananaUTC,
+                        "checkOut": fechaPasadoUTC,
                     },
                     "occupancies": [
                         {
@@ -460,7 +463,7 @@ exports.ExecAll = async (req, res) => {
             }
             console.log('Conexión cerrada.');
         });
-    }, 60000);
+    }, 600000);
 
     return res?.json({ resHotel, resRateHaw: "" }) || ""
 }
