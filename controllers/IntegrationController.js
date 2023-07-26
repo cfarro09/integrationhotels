@@ -269,7 +269,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
                     "filters": destinations.slice(i * 100, (i + 1) * 100).map(x => ({
                         searchFilterItems: [{ "type": "destination", "value": x.code }]
                     })),
-                    "from": fechaMananaUTC,
+                    "from": fechaActualUTC,
                     "to": fechaMananaUTC,
                     "paxes": [{
                         "age": 30
@@ -352,7 +352,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
         const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
 
 
-        getDestinationsActivities(tokenActivities, fechaActualUTC, fechaMananaUTC);
+        getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC);
 
         // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
 
