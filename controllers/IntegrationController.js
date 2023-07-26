@@ -256,7 +256,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
         ...acc,
         ...item.destinations
     ], []);
-    const destinationsFilter = destinations.slice(0, 100).map(x => ({
+    const destinationsFilter = destinations.slice(0, 200).map(x => ({
         searchFilterItems: [{ "type": "destination", "value": x.code }]
     }))
     const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
@@ -267,7 +267,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             headers: tokenActivities,
             data: JSON.stringify({
                 "filters": destinationsFilter,
-                "from": fechaActualUTC,
+                "from": fechaMananaUTC,
                 "to": fechaMananaUTC,
                 "paxes": [{
                     "age": 30
