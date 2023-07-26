@@ -1,102 +1,46 @@
 const axios = require('axios')
 const fs = require('fs');
-const crypto = require('crypto');
-const path = require('path');
-const { exec } = require('child_process')
-const mysql = require('mysql2');
+const { writeFileAsync, deleteDir, readFile, decompressZstFile } = require('../config/helpers');
+const { connectBD, connectBD1 } = require('../config/databases');
+const { authorizationHotelBed, getDestinationsSync, getRoutesSync } = require('../config/hotelbeds');
 let XidHotel = 1;
 let XidRoom = 1;
 let XidRate = 1;
-function decompressZstFile(filePath, output) {
-    return new Promise((resolve, reject) => {
-        exec(`unzstd ${filePath} -o ${output}`, (error, stdout, stderr) => {
-            if (error) {
-                console.warn(error);
-                reject(error);
-            }
-            resolve(stdout ? stdout : stderr);
-        });
-    });
-}
 
-function writeFileAsync(filePath, data) {
-    return new Promise((resolve, reject) => {
-        const writeStream = fs.createWriteStream(filePath);
+let XidActivity = 0;
+let XidModality = 0;
+let XidAmountsFrom = 0;
 
-        // Evento de escritura finalizada
-        writeStream.on('finish', () => {
-            resolve();
-        });
-
-        writeStream.on('error', (err) => {
-            reject(err);
-        });
-        writeStream.write(data);
-
-        writeStream.end();
-    });
-}
-
-function deleteDir(filePath) {
-    const files = fs.readdirSync(filePath);
-
-    for (const file of files) {
-        const currentPath = path.join(filePath, file);
-
-        if (fs.lstatSync(currentPath).isDirectory()) {
-            // Si es un subdirectorio, eliminarlo de manera recursiva
-            removeDirRecursive(currentPath);
-        } else {
-            // Si es un archivo, eliminarlo
-            fs.unlinkSync(currentPath);
-        }
-    }
-
-    // Después de eliminar todos los archivos y subdirectorios, eliminar el directorio actual
-    fs.rmdirSync(filePath);
-}
 let connection = null;
 let connection1 = null;
 
-
-const connectBD = () => {
-    return new Promise((resolve, reject) => {
-        const connection1 = mysql.createConnection({
-            host: '89.117.72.104',
-            user: 'tu_usuario',
-            password: 'tu_contrasena',
-            database: 'crmenjoy',
-        });
-
-        connection1.connect((err) => {
-            if (err) {
-                console.error('Error al conectarse a la base de datos:', err);
-                return;
-            }
-            resolve(connection1)
-            console.log('¡Conexión a MySQL exitosa!');
-        });
-    })
-}
-
-const connectBD1 = () => {
-    return new Promise((resolve, reject) => {
-        const connection1 = mysql.createConnection({
-            host: '89.117.72.104',
-            user: 'tu_usuario',
-            password: 'tu_contrasena',
-            database: 'crmenjoyperu',
-        });
-
-        connection1.connect((err) => {
-            if (err) {
-                console.error('Error al conectarse a la base de datos:', err);
-                return;
-            }
-            resolve(connection1)
-            console.log('¡Conexión a MySQL exitosa!');
-        });
-    })
+const insertMassiveActivities = async (activities, modalities, amounts, deletet = false) => {
+     // Llamar al Stored Procedure con parámetros
+     const spName = 'ufn_activity_massive_insert';
+     const parameter1 = JSON.stringify(activities);
+     const parameter2 = JSON.stringify(modalities);
+     const parameter3 = JSON.stringify(amounts);
+     const parameter4 = deletet;
+ 
+     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
+ 
+     return new Promise((resolve, reject) => {
+         connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+             if (err) {
+                 console.error('Error al ejecutar el Stored Procedure:', err);
+                 return;
+             }
+             connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
+                 if (err) {
+                     console.error('Error al ejecutar el Stored Procedure:', err);
+                     return;
+                 }
+                 // Los resultados del SP se encuentran en 'results'
+                 console.log('Resultados del Stored Procedure:');
+                 resolve()
+             });
+         });
+     })
 }
 
 const cleanData = async (data, proveedor, deletet = false) => {
@@ -269,7 +213,6 @@ const getRatehawhotel = async () => {
         deleteDir(dir)
 
         return { success: true }
-
     } catch (error) {
         // console.log(error)
         return {
@@ -278,28 +221,139 @@ const getRatehawhotel = async () => {
     }
 }
 
+const getTransfers = async (tokenTransfer, fechaActualUTC, fechaMananaUTC) => {
+    // await getRoutesSync(tokenTransfer)
+
+    try {
+        let routesJson = await readFile("../files/routes.json");
+        routesJson = routesJson.filter(x => !!x.routes).reduce((acc, item) => [
+            ...acc,
+            ...item.routes
+        ], []).slice(0, 10).map(x => ({
+            "id": x,
+            "dateTime": `${fechaActualUTC}T10:00:00`
+        }));
+
+        console.log("routesJson", routesJson)
+        const ressss = await axios({
+            method: 'POST',
+            url: `https://api.test.hotelbeds.com/transfer-api/1.0/availability/routes/en/2/0/0`,
+            headers: tokenTransfer,
+            data: JSON.stringify(routesJson)
+        })
+
+        await writeFileAsync("../files/rrrrrr.json", JSON.stringify(ressss.data))
+
+    } catch (error) {
+        console.log("(error?.response?.data ?? { error })", (error?.response?.data))
+        return { ...(error?.response?.data ?? { error }) };
+    }
+}
+
+const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaMananaUTC) => {
+    const destinationsoff = await readFile("../files/destinations.json");
+    const destinations = destinationsoff.filter(x => !!x.destinations).reduce((acc, item) => [
+        ...acc,
+        ...item.destinations
+    ], []);
+    const destinationsFilter = destinations.map(x => ({
+        searchFilterItems: [{ "type": "destination", "value": x.code }]
+    }))
+    const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
+    try {
+        const ressss = await axios({
+            method: 'POST',
+            url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
+            headers: tokenActivities,
+            data: JSON.stringify({
+                "filters": destinationsFilter,
+                "from": fechaActualUTC,
+                "to": fechaMananaUTC,
+                "paxes": [{
+                    "age": 30
+                }],
+                "language": "es",
+                "pagination": {
+                    "itemsPerPage": 100,
+                    "page": 1
+                },
+            })
+        })
+
+        let dataCleaned = ressss.data.activities.map(x => ({
+            id: (() => ++XidActivity)(),
+            country: x.country.name,
+            countrycode: x.country.code,
+            currency: x.currencyName,
+            description: x.content.description,
+            images: x.content?.media?.images?.map(images => images.urls.find(image => image.sizeType === "LARGE").resource).join(","),
+            destinations: x.destinations?.length > 0 ? x.destinations[0].name : "",
+            operationdays: x.operationDays?.map(x => x.name).join(","),
+            modalities: x.modalities.map(y => ({
+                id: (() => ++XidModality)(),
+                activityid: XidActivity,
+                name: y.name,
+                duration: `${y.duration.value} ${y.duration.metric}`,
+                ratecode: y.rates.length > 0 ? y.rates[0].rateCode : "",
+                ratename: y.rates.length > 0 ? y.rates[0].name : "",
+                amounts: y.amountsFrom.map(z => ({
+                    id: (() => ++XidAmountsFrom)(),
+                    modalityid: XidModality,
+                    paxType: z.paxType,
+                    ageFrom: z.ageFrom,
+                    ageTo: z.ageTo,
+                    amount: z.amount,
+                }))
+            })),
+        }));
+        const activities = dataCleaned.map(x => ({ ...x, modalities: undefined }));
+        let modalities = dataCleaned.reduce((acc, item) => [...acc, ...item.modalities], []);
+        const amounts = modalities.reduce((acc, item) => [...acc, ...item.amounts], []);
+        modalities = modalities.map(x => ({ ...x, amounts: undefined }));
+        console.log("activities", activities.length)
+        await insertMassiveActivities(activities, modalities, amounts, false);
+
+    } catch (error) {
+        console.log(error)
+        console.log("(error?.response?.data ?? { error })", (error?.response?.data ?? { error }))
+        return { ...(error?.response?.data ?? { error }) };
+    }
+}
 
 const getHotelBeds = async () => {
     try {
+        const fechaActual = new Date();
+        const fechaManana = new Date();
+
+        // Agregar un día para obtener la fecha de mañana
+        fechaManana.setDate(fechaManana.getDate() + 1);
+
+        // Obtener las partes de la fecha en UTC
+        const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
+        const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
+
         const apiKey = "5869350eadd972f2fa41fe06b27473cd";
         const secret = "43e5240cf6";
-        const currentDate = Math.floor(Date.now() / 1000);
-        const inputString = apiKey + secret + currentDate;
-        const sha256Hash = crypto.createHash('sha256').update(inputString).digest('hex');
-        const Authorization = {
-            'Api-key': apiKey,
-            'X-Signature': sha256Hash,
-            'Accept-Encoding': 'gzip',
-            'Content-Type': 'application/json',
-        }
-        const fields = [
-            "code", "name", "phones", "description", "city", "email", "address", "images"
-        ]
+
+        const apiKeyActivity = "5bc0c8c02f24d1db4d1e879fcac1f926";
+        const secretActivity = "588f045192";
+
+        const apiKeyTransfer = "ed1e79f7311ec6d82474f3c7762cf6b4";
+        const secretTransfer = "1614bf7b6a";
+
+        const tokenActivities = authorizationHotelBed(apiKeyActivity, secretActivity);
+        const tokenTransfer = authorizationHotelBed(apiKeyTransfer, secretTransfer);
+        const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
+
+
+        getDestinationsActivities(tokenActivities, fechaActualUTC, fechaMananaUTC);
+
+        // // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
 
         const resultHotels = await axios({
             method: 'GET',
             url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
-            headers: Authorization,
+            headers: authorizationHotelBed(apiKey, secret),
         })
 
         const dataHotels = resultHotels.data.hotels.map(x => ({
@@ -313,17 +367,6 @@ const getHotelBeds = async () => {
             phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
             rooms: []
         }))
-
-        const fechaActual = new Date();
-        const fechaManana = new Date();
-
-        // Agregar un día para obtener la fecha de mañana
-        fechaManana.setDate(fechaManana.getDate() + 1);
-
-        // Obtener las partes de la fecha en UTC
-        const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
-        const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
-
 
         if (dataHotels.length > 0) {
             const paramsRooms = {
@@ -346,7 +389,7 @@ const getHotelBeds = async () => {
             const resultRooms = await axios({
                 method: 'POST',
                 url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
-                headers: Authorization,
+                headers: authorizationHotelBed(apiKey, secret),
                 data: JSON.stringify(paramsRooms)
             })
 
@@ -390,6 +433,7 @@ exports.ExecAll = async (req, res) => {
     connection1 = await connectBD1();
 
     await cleanData([], "", true)
+    await insertMassiveActivities([], [], [], true);
 
     const resHotel = await getHotelBeds();
     const resRateHaw = await getRatehawhotel();
@@ -412,5 +456,5 @@ exports.ExecAll = async (req, res) => {
         });
     }, 60000);
 
-    return res?.json({ resHotel, resRateHaw }) || ""
+    return res?.json({ resHotel, resRateHaw: "" }) || ""
 }
