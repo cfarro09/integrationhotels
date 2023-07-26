@@ -401,7 +401,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
                 })
 
                 const dataHotelRooms = resultRooms.data.hotels.hotels;
-                console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels.length)
+                // console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels?.length)
                 for (const element of dataHotels) {
                     element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                         ...room,
@@ -444,7 +444,7 @@ exports.ExecAll = async (req, res) => {
     await cleanData([], "", true)
     await insertMassiveActivities([], [], [], true);
 
-    const resHotel = await getHotelBeds();
+    getHotelBeds();
     const resRateHaw = await getRatehawhotel();
 
     // Cerrar la conexión después de obtener los resultados
@@ -465,5 +465,5 @@ exports.ExecAll = async (req, res) => {
         });
     }, 600000);
 
-    return res?.json({ resHotel, resRateHaw: "" }) || ""
+    return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
