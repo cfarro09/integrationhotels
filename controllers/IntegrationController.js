@@ -127,7 +127,7 @@ const processChunk = (data) => {
             email: hotel.email,
             phone: hotel.phone,
             images: hotel.images?.map(x => x.replace(/{size}/gi, '640x400')).join(","),
-            city: "",
+            city: hotel.region.name,
             description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
             rooms: hotel.room_groups?.map((room) => ({
                 code: room.room_group_id + "",
@@ -183,7 +183,7 @@ const getRatehawhotel = async () => {
     try {
         const data = {
             "inventory": "all",
-            "language": "en"
+            "language": "es"
         }
         const result = await axios({
             method: 'POST',
@@ -210,7 +210,7 @@ const getRatehawhotel = async () => {
         await readLargeFile(namefile.replace(".zst", ""));
         // await readLargeFile("../files/1689817805567.json");
 
-        deleteDir(dir)
+        // deleteDir(dir)
 
         return { success: true }
     } catch (error) {
