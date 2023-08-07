@@ -14,6 +14,22 @@ let XidAmountsFrom = 0;
 let connection = null;
 let connection1 = null;
 
+const executeQuery = (connection, query, parameters) => {
+    return new Promise((resolve, reject) => {
+        connection.query(query, parameters, (err, results) => {
+            if (err) {
+                console.error('Error al ejecutar el Stored Procedure:', err);
+                reject(err);
+                return;
+            }
+            // Los resultados del SP se encuentran en 'results'
+            console.log('Resultados del Stored Procedure:');
+            console.log(results);
+            resolve(results);
+        });
+    });
+};
+
 const insertMassiveActivities = async (activities, modalities, amounts, deletet = false) => {
     // Llamar al Stored Procedure con parámetros
     const spName = 'ufn_activity_massive_insert';
@@ -96,25 +112,11 @@ const cleanData = async (data, proveedor, deletet = false) => {
     hotels = null;
     rooms1 = null;
     rates = null;
-    return new Promise((resolve, reject) => {
-        connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-            if (err) {
-                console.error('Error al ejecutar el Stored Procedure:', err);
-                return;
-            }
-            // Los resultados del SP se encuentran en 'results'
-            console.log('Resultados del Stored Procedure:');
-            connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-                if (err) {
-                    console.error('Error al ejecutar el Stored Procedure:', err);
-                    return;
-                }
-                // Los resultados del SP se encuentran en 'results'
-                console.log('Resultados del Stored Procedure:');
-                resolve()
-            });
-        });
-    })
+
+    await Promise.all([
+        executeQuery(connection, query, [parameter1, parameter2, parameter3, parameter4]),
+        executeQuery(connection1, query, [parameter1, parameter2, parameter3, parameter4]),
+    ]);
 }
 
 const processChunk = async (data) => {
