@@ -92,7 +92,7 @@ const cleanData = async (data, proveedor, deletet = false) => {
     const parameter4 = deletet;
 
     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
-
+    data = null;
     return new Promise((resolve, reject) => {
         connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
             if (err) {
@@ -153,7 +153,6 @@ const processChunk = (data) => {
 function readLargeFile(filePath) {
     let lastText1 = "";
 
-    let index = 0;
     return new Promise((resolve, reject) => {
         const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 16 });
 
@@ -163,7 +162,6 @@ function readLargeFile(filePath) {
             const { lastText } = processChunk(lastText1 + chunk)
             lastText1 = lastText;
             // allData = jsonFormat //[...allData, ...jsonFormat];
-            index++;
         });
 
         // Evento de finalización: se dispara cuando se ha leído todo el archivo
@@ -279,8 +277,7 @@ async function fetchActivitiesData(i, filters, fechaActualUTC, fechaMananaUTC, t
 }
 
 const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaMananaUTC) => {
-    const destinationsoff = await readFile("../important/destinations.json");
-    const destinations = destinationsoff.filter(x => !!x.destinations).reduce((acc, item) => [
+    let destinations = (await readFile("../important/destinations.json")).filter(x => !!x.destinations).reduce((acc, item) => [
         ...acc,
         ...item.destinations
     ], []);
@@ -293,7 +290,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             searchFilterItems: [{ "type": "destination", "value": x.code }]
         })), fechaActualUTC, fechaMananaUTC, tokenActivities));
         const responses = await Promise.all(fetchPromises);
-
+        destinations = null;
         // Combinar todas las respuestas en un solo array
         const activitiesAll = responses.reduce((acc, data) => [...acc, ...data], []);
 
@@ -373,13 +370,13 @@ const getHotelBeds = async (hotelstrigger = true) => {
         // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
 
         if (hotelstrigger) {
-            const resultHotels = await axios({
+            let dataHotels = await axios({
                 method: 'GET',
                 url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
                 headers: authorizationHotelBed(apiKey, secret),
             })
 
-            const dataHotels = resultHotels.data.hotels.map(x => ({
+            dataHotels = dataHotels.data.hotels.map(x => ({
                 code: x.code,
                 name: x.name.content,
                 description: x.description?.content,
@@ -390,7 +387,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
                 phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
                 rooms: []
             }))
-
+            console.log("hotelbed,dataHotels", dataHotels.length)
             if (dataHotels.length > 0) {
                 const paramsRooms = {
                     "stay": {
