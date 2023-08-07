@@ -202,9 +202,9 @@ const getRatehawhotel = async () => {
 
         const namefile = `${dir}/${new Date().getTime()}.json.zst`;
         const response = await axios.get(url, { responseType: 'arraybuffer' });
-
+        console.log("guardando")
         await writeFileAsync(namefile, response.data)
-
+        console.log("descomprimiendo")
         await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
         await readLargeFile(namefile.replace(".zst", ""));
