@@ -23,8 +23,7 @@ const executeQuery = (connection, query, parameters) => {
                 return;
             }
             // Los resultados del SP se encuentran en 'results'
-            console.log('Resultados del Stored Procedure:');
-            resolve(results);
+            resolve();
         });
     });
 };
@@ -156,12 +155,14 @@ const processChunk = async (data) => {
 
 function readLargeFile(filePath) {
     let lastText1 = "";
-
+    let bbb = 0;
     return new Promise(async (resolve, reject) => {
         const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
 
         for await (const chunk of readableStream) {
             const { lastText } = await processChunk(lastText1 + chunk);
+            bbb = readableStream.bytesRead;
+            console.log("reading", (bbb / (1024 * 1024).toFixed(2)))
             lastText1 = lastText;
             // allData = jsonFormat //[...allData, ...jsonFormat];
         }
