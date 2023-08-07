@@ -24,7 +24,6 @@ const executeQuery = (connection, query, parameters) => {
             }
             // Los resultados del SP se encuentran en 'results'
             console.log('Resultados del Stored Procedure:');
-            console.log(results);
             resolve(results);
         });
     });
