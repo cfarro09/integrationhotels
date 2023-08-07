@@ -177,6 +177,11 @@ function readLargeFile(filePath) {
     });
 }
 
+const downloadAndSave = async (url, namefile) => {
+    let response = await axios.get(url, { responseType: 'arraybuffer' });
+    console.log("guardando")
+    await writeFileAsync(namefile, response.data)
+}
 const getRatehawhotel = async () => {
     try {
         const data = {
@@ -200,10 +205,9 @@ const getRatehawhotel = async () => {
 
         const namefile = `${dir}/${new Date().getTime()}.json.zst`;
         console.log("descargando")
-        let response = await axios.get(url, { responseType: 'arraybuffer' });
-        console.log("guardando")
-        await writeFileAsync(namefile, response.data)
-        response = null;
+
+        await downloadAndSave(url, namefile)
+        
         console.log("descomprimiendo")
         await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
