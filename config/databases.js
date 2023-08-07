@@ -3,7 +3,7 @@ const mysql = require('mysql2');
 exports.connectBD = async () => {
     return new Promise((resolve, reject) => {
         const connection1 = mysql.createConnection({
-            host: '89.117.72.1014',
+            host: '89.117.72.104',
             user: 'tu_usuario',
             password: 'tu_contrasena',
             database: 'crmenjoy',
@@ -22,7 +22,7 @@ exports.connectBD = async () => {
 exports.connectBD1 = async () => {
     return new Promise((resolve, reject) => {
         const connection1 = mysql.createConnection({
-            host: '89.117.72.12m04',
+            host: '89.117.72.104',
             user: 'tu_usuario',
             password: 'tu_contrasena',
             database: 'crmenjoyperu',
