@@ -155,7 +155,7 @@ function readLargeFile(filePath) {
 
     let index = 0;
     return new Promise((resolve, reject) => {
-        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 32 });
+        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 16 });
 
         // Evento de datos: se dispara cuando se lee un chunk del archivo
         readableStream.on('data', (chunk) => {
@@ -187,7 +187,7 @@ const getRatehawhotel = async () => {
         }
         const result = await axios({
             method: 'POST',
-            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/incremental_dump/',
+            url: 'https://api.worldota.net/api/b2b/v3/hotel/info/dump/',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
