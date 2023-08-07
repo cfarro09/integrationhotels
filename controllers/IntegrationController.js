@@ -155,7 +155,7 @@ function readLargeFile(filePath) {
 
     let index = 0;
     return new Promise((resolve, reject) => {
-        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
+        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 32 });
 
         // Evento de datos: se dispara cuando se lee un chunk del archivo
         readableStream.on('data', (chunk) => {
@@ -201,6 +201,7 @@ const getRatehawhotel = async () => {
         fs.mkdirSync(dir, { recursive: true });
 
         const namefile = `${dir}/${new Date().getTime()}.json.zst`;
+        console.log("descargando")
         const response = await axios.get(url, { responseType: 'arraybuffer' });
         console.log("guardando")
         await writeFileAsync(namefile, response.data)
@@ -210,7 +211,7 @@ const getRatehawhotel = async () => {
         await readLargeFile(namefile.replace(".zst", ""));
         // await readLargeFile("../files/1689817805567.json");
 
-        // deleteDir(dir)
+        deleteDir(dir)
 
         return { success: true }
     } catch (error) {
@@ -478,7 +479,7 @@ exports.ExecAll = async (req, res) => {
             }
             console.log('Conexión cerrada.');
         });
-    }, 600000);
+    }, 900000);
 
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
