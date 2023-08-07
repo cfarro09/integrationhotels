@@ -49,7 +49,7 @@ const cleanData = async (data, proveedor, deletet = false) => {
         XidRoom = 1;
         XidRate = 1;
     }
-    const hotels = data.map((hotel, index) => ({
+    let hotels = data.map((hotel, index) => ({
         ...hotel,
         proveedor,
         id: (() => {
@@ -58,7 +58,7 @@ const cleanData = async (data, proveedor, deletet = false) => {
         })()
     }));
 
-    const rooms1 = hotels.reduce((acc, item, indexHotel) => ([
+    let rooms1 = hotels.reduce((acc, item, indexHotel) => ([
         ...acc,
         ...(item.rooms?.map(room => ({
             ...room,
@@ -71,7 +71,7 @@ const cleanData = async (data, proveedor, deletet = false) => {
         })()
     }));
 
-    const rates = rooms1.reduce((acc, item) => ([
+    let rates = rooms1.reduce((acc, item) => ([
         ...acc,
         ...(item.rates?.map(rate => ({
             ...rate,
@@ -93,6 +93,9 @@ const cleanData = async (data, proveedor, deletet = false) => {
 
     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
     data = null;
+    hotels = null;
+    rooms1 = null;
+    rates = null;
     return new Promise((resolve, reject) => {
         connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
             if (err) {
