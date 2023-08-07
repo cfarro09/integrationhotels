@@ -294,7 +294,6 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
         // Combinar todas las respuestas en un solo array
         const activitiesAll = responses.reduce((acc, data) => [...acc, ...data], []);
 
-        console.log("destinations", destinations.length)
 
         let dataCleaned = activitiesAll.map(x => ({
             id: (() => ++XidActivity)(),
