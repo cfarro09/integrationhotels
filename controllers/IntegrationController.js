@@ -117,7 +117,7 @@ const cleanData = async (data, proveedor, deletet = false) => {
     })
 }
 
-const processChunk = (data) => {
+const processChunk = async (data) => {
     try {
         const listObj = data.split(/\n/);
         const lastText = listObj.pop();
@@ -144,7 +144,7 @@ const processChunk = (data) => {
 
             }))
         }))
-        cleanData(transformData, "ratehaw")
+        await cleanData(transformData, "ratehaw")
 
         return { lastText };
     } catch (error) {
@@ -156,21 +156,28 @@ const processChunk = (data) => {
 function readLargeFile(filePath) {
     let lastText1 = "";
 
-    return new Promise((resolve, reject) => {
-        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 16 });
+    return new Promise(async (resolve, reject) => {
+        const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
 
-        // Evento de datos: se dispara cuando se lee un chunk del archivo
-        readableStream.on('data', (chunk) => {
-            // Aquí puedes procesar el chunk leído, por ejemplo, imprimirlo en la consola
-            const { lastText } = processChunk(lastText1 + chunk)
+        for await (const chunk of readableStream) {
+            const { lastText } = await processChunk(lastText1 + chunk);
             lastText1 = lastText;
             // allData = jsonFormat //[...allData, ...jsonFormat];
-        });
+        }
+        resolve();
+
+        // Evento de datos: se dispara cuando se lee un chunk del archivo
+        // readableStream.on('data', (chunk) => {
+        //     // Aquí puedes procesar el chunk leído, por ejemplo, imprimirlo en la consola
+        //     const { lastText } = processChunk(lastText1 + chunk)
+        //     lastText1 = lastText;
+        //     // allData = jsonFormat //[...allData, ...jsonFormat];
+        // });
 
         // Evento de finalización: se dispara cuando se ha leído todo el archivo
-        readableStream.on('end', () => {
-            resolve();
-        });
+        // readableStream.on('end', () => {
+        //     resolve();
+        // });
 
         // Evento de error: se dispara si ocurre algún error durante la lectura
         readableStream.on('error', (err) => {
@@ -210,7 +217,7 @@ const getRatehawhotel = async () => {
         console.log("descargando")
 
         await downloadAndSave(url, namefile)
-        
+
         console.log("descomprimiendo")
         await decompressZstFile(namefile, namefile.replace(".zst", ""))
 
