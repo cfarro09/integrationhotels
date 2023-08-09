@@ -22,11 +22,22 @@ const executeQuery = (connection, query, parameters) => {
                 reject(err);
                 return;
             }
-            // Los resultados del SP se encuentran en 'results'
             resolve();
         });
     });
 };
+
+const closeConnection = async (connection) => {
+    return new Promise((resolve, reject) => {
+        connection.end((err) => {
+            if (err) {
+                console.error('Error al cerrar la conexión:', err);
+                return;
+            }
+            resolve(connection)
+        });
+    })
+}
 
 const insertMassiveActivities = async (activities, modalities, amounts, deletet = false) => {
     // Llamar al Stored Procedure con parámetros
@@ -35,26 +46,12 @@ const insertMassiveActivities = async (activities, modalities, amounts, deletet 
     const parameter2 = JSON.stringify(modalities);
     const parameter3 = JSON.stringify(amounts);
     const parameter4 = deletet;
-
     const query = `CALL ${spName}(?, ?, ?, ?)`; // Usamos '?' como marcadores de posición para los parámetros
 
-    return new Promise((resolve, reject) => {
-        connection.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-            if (err) {
-                console.error('Error al ejecutar el Stored Procedure:', err);
-                return;
-            }
-            connection1.query(query, [parameter1, parameter2, parameter3, parameter4], (err, results) => {
-                if (err) {
-                    console.error('Error al ejecutar el Stored Procedure:', err);
-                    return;
-                }
-                // Los resultados del SP se encuentran en 'results'
-                console.log('Resultados del Stored Procedure:');
-                resolve()
-            });
-        });
-    })
+    await Promise.all([
+        executeQuery(connection, query, [parameter1, parameter2, parameter3, parameter4]),
+        executeQuery(connection1, query, [parameter1, parameter2, parameter3, parameter4]),
+    ]);
 }
 
 const cleanData = async (data, proveedor, deletet = false) => {
@@ -164,23 +161,8 @@ function readLargeFile(filePath) {
             bbb = readableStream.bytesRead;
             console.log("reading", (bbb / (1024 * 1024).toFixed(2)))
             lastText1 = lastText;
-            // allData = jsonFormat //[...allData, ...jsonFormat];
         }
         resolve();
-
-        // Evento de datos: se dispara cuando se lee un chunk del archivo
-        // readableStream.on('data', (chunk) => {
-        //     // Aquí puedes procesar el chunk leído, por ejemplo, imprimirlo en la consola
-        //     const { lastText } = processChunk(lastText1 + chunk)
-        //     lastText1 = lastText;
-        //     // allData = jsonFormat //[...allData, ...jsonFormat];
-        // });
-
-        // Evento de finalización: se dispara cuando se ha leído todo el archivo
-        // readableStream.on('end', () => {
-        //     resolve();
-        // });
-
         // Evento de error: se dispara si ocurre algún error durante la lectura
         readableStream.on('error', (err) => {
             console.error('Error al leer el archivo:', err);
@@ -230,7 +212,6 @@ const getRatehawhotel = async () => {
 
         return { success: true }
     } catch (error) {
-        // console.log(error)
         return {
             error: error
         }
@@ -352,6 +333,70 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
     }
 }
 
+const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
+    const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
+    for (let ii = 0; ii < 10; ii++) {
+        console.log(`running ${ii}`)
+        let dataHotels = await axios({
+            method: 'GET',
+            url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}&from=${ii * 100 + 1}&to=${(ii + 1) * 100}`,
+            headers
+        });
+        dataHotels = dataHotels.data.hotels.map(x => ({
+            code: x.code,
+            name: x.name.content,
+            description: x.description?.content,
+            address: x.address?.content ?? "",
+            city: x.city?.content,
+            images: x?.images?.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
+            email: x.email,
+            phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
+            rooms: []
+        }))
+        console.log("hotelbed,dataHotels")
+        if (dataHotels.length > 0) {
+            const paramsRooms = {
+                "stay": {
+                    "checkIn": fechaMananaUTC,
+                    "checkOut": fechaPasadoUTC,
+                },
+                "occupancies": [
+                    {
+                        "rooms": 1,
+                        "adults": 2,
+                        "children": 0
+                    }
+                ],
+                "hotels": {
+                    "hotel": dataHotels.map(x => x.code)
+                }
+            }
+    
+            const resultRooms = await axios({
+                method: 'POST',
+                url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
+                headers,
+                data: JSON.stringify(paramsRooms)
+            })
+            const dataHotelRooms = resultRooms.data.hotels.hotels;
+    
+            for (const element of dataHotels) {
+                element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
+                    ...room,
+                    rates: room.rates.map(rate => ({
+                        price: rate.net,
+                        boardName: rate.boardName,
+                        adults: rate.adults,
+                        rateKey: rate.rateKey,
+                    }))
+                }))
+            }
+        }
+        await cleanData(dataHotels, "hotelbeds")
+        console.log(`finish ${ii}`)
+    }
+}
+
 const getHotelBeds = async (hotelstrigger = true) => {
     try {
         const fechaActual = new Date();
@@ -378,72 +423,13 @@ const getHotelBeds = async (hotelstrigger = true) => {
 
         const tokenActivities = authorizationHotelBed(apiKeyActivity, secretActivity);
         const tokenTransfer = authorizationHotelBed(apiKeyTransfer, secretTransfer);
-        const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
 
-
-        getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC);
+        // getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC);
 
         // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
 
         if (hotelstrigger) {
-            let dataHotels = await axios({
-                method: 'GET',
-                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}`,
-                headers: authorizationHotelBed(apiKey, secret),
-            })
-
-            dataHotels = dataHotels.data.hotels.map(x => ({
-                code: x.code,
-                name: x.name.content,
-                description: x.description?.content,
-                address: x.address?.content ?? "",
-                city: x.city?.content,
-                images: x.images.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
-                email: x.email,
-                phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
-                rooms: []
-            }))
-            console.log("hotelbed,dataHotels", dataHotels.length)
-            if (dataHotels.length > 0) {
-                const paramsRooms = {
-                    "stay": {
-                        "checkIn": fechaMananaUTC,
-                        "checkOut": fechaPasadoUTC,
-                    },
-                    "occupancies": [
-                        {
-                            "rooms": 1,
-                            "adults": 2,
-                            "children": 0
-                        }
-                    ],
-                    "hotels": {
-                        "hotel": dataHotels.map(x => x.code)
-                    }
-                }
-
-                const resultRooms = await axios({
-                    method: 'POST',
-                    url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
-                    headers: authorizationHotelBed(apiKey, secret),
-                    data: JSON.stringify(paramsRooms)
-                })
-
-                const dataHotelRooms = resultRooms.data.hotels.hotels;
-                // console.log("resultRooms.data.hotels", resultRooms.data.hotels.hotels?.length)
-                for (const element of dataHotels) {
-                    element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
-                        ...room,
-                        rates: room.rates.map(rate => ({
-                            price: rate.net,
-                            boardName: rate.boardName,
-                            adults: rate.adults,
-                            rateKey: rate.rateKey,
-                        }))
-                    }))
-                }
-            }
-            await cleanData(dataHotels, "hotelbeds")
+            await getHotelsBedsOnline(authorizationHotelBed(apiKey, secret), fechaMananaUTC, fechaPasadoUTC);
         }
         return { success: true }
 
@@ -455,44 +441,19 @@ const getHotelBeds = async (hotelstrigger = true) => {
 }
 
 
-exports.GetRatehawhotel = async (req, res) => {
-    const rr = await getRatehawhotel();
-    return res.json(rr)
-}
-
-exports.GetHotelBeds = async (req, res) => {
-    const rr = await getHotelBeds();
-    return res.json(rr)
-}
-
 exports.ExecAll = async (req, res) => {
     console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
 
     await cleanData([], "", true)
-    await insertMassiveActivities([], [], [], true);
+    // await insertMassiveActivities([], [], [], true);
 
-    getHotelBeds();
-    const resRateHaw = await getRatehawhotel();
+    await getHotelBeds();
+    await getRatehawhotel();
 
-    // Cerrar la conexión después de obtener los resultados
-    setTimeout(() => {
-        connection.end((err) => {
-            if (err) {
-                console.error('Error al cerrar la conexión:', err);
-                return;
-            }
-            console.log('Conexión cerrada.');
-        });
-        connection1.end((err) => {
-            if (err) {
-                console.error('Error al cerrar la conexión1:', err);
-                return;
-            }
-            console.log('Conexión cerrada.');
-        });
-    }, 900000);
+    await closeConnection(connection);
+    await closeConnection(connection1);
 
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }

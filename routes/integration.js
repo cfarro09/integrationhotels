@@ -3,10 +3,10 @@ const { GetHotelBeds, GetRatehawhotel, ExecAll } = require('../controllers/Integ
 const router = express.Router()
 
 
-router.get('/hotelbeds', GetHotelBeds)
+// router.get('/hotelbeds', GetHotelBeds)
 
-router.get('/ratehaw', GetRatehawhotel)
+// router.get('/ratehaw', GetRatehawhotel)
 
-router.get('/all', ExecAll)
+// router.get('/all', ExecAll)
 
 module.exports = router
