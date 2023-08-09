@@ -451,10 +451,10 @@ exports.ExecAll = async (req, res) => {
     connection1 = await connectBD1();
 
     await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)])
-    await Promise.all([getHotelBeds(), getRatehawhotel()])
+    await getHotelBeds();
+    await getRatehawhotel();
 
-    await closeConnection(connection);
-    await closeConnection(connection1);
+    await Promise.all(closeConnection(connection), closeConnection(connection1));
 
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
