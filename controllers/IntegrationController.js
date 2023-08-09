@@ -371,7 +371,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                     "hotel": dataHotels.map(x => x.code)
                 }
             }
-    
+
             const resultRooms = await axios({
                 method: 'POST',
                 url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
@@ -379,7 +379,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 data: JSON.stringify(paramsRooms)
             })
             const dataHotelRooms = resultRooms.data.hotels.hotels;
-    
+
             for (const element of dataHotels) {
                 element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                     ...room,
@@ -445,12 +445,9 @@ exports.ExecAll = async (req, res) => {
     console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
-
-    await cleanData([], "", true)
-    // await insertMassiveActivities([], [], [], true);
-
-    await getHotelBeds();
-    await getRatehawhotel();
+    
+    await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)])
+    await Promise.all([getHotelBeds(), getRatehawhotel()])
 
     await closeConnection(connection);
     await closeConnection(connection1);
