@@ -68,3 +68,20 @@ exports.decompressZstFile = async (filePath, output) => {
         });
     });
 }
+
+exports.getFechas = () => {
+    const fechaActual = new Date();
+    const fechaManana = new Date();
+    const fechapasado = new Date();
+
+    // Agregar un día para obtener la fecha de mañana
+    fechaManana.setDate(fechaManana.getDate() + 1);
+    fechapasado.setDate(fechapasado.getDate() + 2);
+
+    // Obtener las partes de la fecha en UTC
+    const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
+    const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
+    const fechaPasadoUTC = fechapasado.toISOString().slice(0, 10);
+
+    return { fechaActualUTC, fechaMananaUTC, fechaPasadoUTC };
+}

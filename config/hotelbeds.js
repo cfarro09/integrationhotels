@@ -24,7 +24,7 @@ const getDestinations = async (token, country) => {
 
         return { country, ...(ressss.data.country ?? {}) };
     } catch (error) {
-        console.log("(error?.response?.data ?? { error })", (error?.response?.data ?? { error }))
+        console.log("(errorrr", error?.response?.status, (error?.response?.data ?? { error }))
         return { country, ...(error?.response?.data ?? { error }) };
     }
 }
@@ -39,18 +39,29 @@ const getRoutes = async (token, code) => {
         
         return { code, routes: ressss.data?.map(x => x.code) ?? [] };
     } catch (error) {
-        console.log("(error?.response?.data ?? { error })", (error?.response?.data))
+        console.log("(erroreeeeeeeeeeeee", error?.response?.status, (error?.response?.data))
         return { code, ...(error?.response?.data ?? { error }) };
     }
 }
 
 exports.getDestinationsSync = async (tokenActivities) => {
-    const countries = await readFile("../files/destinations.json");
+    const countries = await readFile("../important/destinations.json");
+    const countriesToSearch = countries.filter(x => !x.destinations);
+    console.log("to search!", countriesToSearch.length);
+    const results = [];
+    const BLOCK = 10;
 
-    console.log("to search!", countries.filter(x => !x.destinations).length)
-    const resCountries = await Promise.all(countries.filter(x => !x.destinations).map(x => getDestinations(tokenActivities, x.country)));
+    for (let i = 0; i < countriesToSearch.length; i += BLOCK) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const chunk = countriesToSearch.slice(i, i + BLOCK);
+        const promises = chunk.map(country => getDestinations(tokenActivities, country.country));
+        const chunkResults = await Promise.all(promises);
+        results.push(...chunkResults);
+      }
 
-    const dataaa = resCountries.filter(x => !!x.destinations).reduce((acc, item) => ({
+    // const resCountries = await Promise.all(countries.filter(x => !x.destinations).map(x => getDestinations(tokenActivities, x.country)));
+
+    const dataaa = results.filter(x => !!x.destinations).reduce((acc, item) => ({
         ...acc,
         [item.country]: item
     }), {})
@@ -63,7 +74,7 @@ exports.getDestinationsSync = async (tokenActivities) => {
         }
     }
 
-    await writeFileAsync("../files/destinations.json", JSON.stringify(countries))
+    await writeFileAsync("../important/destinations.json", JSON.stringify(countries))
 }
 
 

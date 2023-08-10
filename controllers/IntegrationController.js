@@ -1,8 +1,14 @@
 const axios = require('axios')
 const fs = require('fs');
-const { writeFileAsync, deleteDir, readFile, decompressZstFile } = require('../config/helpers');
+const { writeFileAsync, deleteDir, readFile, decompressZstFile, getFechas } = require('../config/helpers');
 const { connectBD, connectBD1 } = require('../config/databases');
 const { authorizationHotelBed, getDestinationsSync, getRoutesSync } = require('../config/hotelbeds');
+const apiKeyHotel = "5869350eadd972f2fa41fe06b27473cd";
+const secretHotel = "43e5240cf6";
+const apiKeyActivity = "5bc0c8c02f24d1db4d1e879fcac1f926";
+const secretActivity = "588f045192";
+const apiKeyTransfer = "ed1e79f7311ec6d82474f3c7762cf6b4";
+const secretTransfer = "1614bf7b6a";
 let XidHotel = 1;
 let XidRoom = 1;
 let XidRate = 1;
@@ -142,7 +148,6 @@ const processChunk = async (data) => {
             }))
         }))
         await cleanData(transformData, "ratehaw")
-
         return { lastText };
     } catch (error) {
         console.log(error)
@@ -153,15 +158,16 @@ const processChunk = async (data) => {
 function readLargeFile(filePath) {
     let lastText1 = "";
     let bbb = 0;
+    console.log(`reading... ${new Date()}`)
     return new Promise(async (resolve, reject) => {
         const readableStream = fs.createReadStream(filePath, { encoding: 'utf8', highWaterMark: 1024 * 1024 * 8 });
 
         for await (const chunk of readableStream) {
             const { lastText } = await processChunk(lastText1 + chunk);
             bbb = readableStream.bytesRead;
-            console.log("reading", (bbb / (1024 * 1024).toFixed(2)))
             lastText1 = lastText;
         }
+        console.log(`finish reading... ${new Date()}`)
         resolve();
         // Evento de error: se dispara si ocurre algún error durante la lectura
         readableStream.on('error', (err) => {
@@ -176,6 +182,7 @@ const downloadAndSave = async (url, namefile) => {
     console.log("guardando")
     await writeFileAsync(namefile, response.data)
 }
+
 const getRatehawhotel = async () => {
     try {
         const data = {
@@ -207,7 +214,6 @@ const getRatehawhotel = async () => {
 
         await readLargeFile(namefile.replace(".zst", ""));
         // await readLargeFile("../files/1689817805567.json");
-
         deleteDir(dir)
 
         return { success: true }
@@ -247,16 +253,13 @@ const getTransfers = async (tokenTransfer, fechaActualUTC, fechaMananaUTC) => {
     }
 }
 
-async function fetchActivitiesData(i, filters, fechaActualUTC, fechaMananaUTC, tokenActivities) {
+async function fetchActivitiesData(filters, fechaActualUTC, fechaMananaUTC, tokenActivities) {
     const fields = ["modalities", "amountsFrom", "rates", "amountsFrom", "media", "content"]
     const ressss = await axios({
         method: 'POST',
         url: `https://api.test.hotelbeds.com/activity-api/3.0/activities/availability?fields=${fields.join(",")}`,
         headers: tokenActivities,
         data: JSON.stringify({
-            // "filters": destinations.slice(i * 70, (i + 1) * 70).map(x => ({
-            //     searchFilterItems: [{ "type": "destination", "value": x.code }]
-            // })),
             filters,
             "from": fechaActualUTC,
             "to": fechaMananaUTC,
@@ -282,16 +285,14 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 
     try {
         const totalRequests = 12;
-
         // Realizar las solicitudes de manera asíncrona y almacenar las respuestas en activitiesAll
-        const fetchPromises = Array.from({ length: totalRequests }, (_, i) => fetchActivitiesData(i, destinations.slice(i * 70, (i + 1) * 70).map(x => ({
+        const fetchPromises = Array.from({ length: totalRequests }, (_, i) => fetchActivitiesData(destinations.slice(i * 70, (i + 1) * 70).map(x => ({
             searchFilterItems: [{ "type": "destination", "value": x.code }]
         })), fechaActualUTC, fechaMananaUTC, tokenActivities));
         const responses = await Promise.all(fetchPromises);
         destinations = null;
         // Combinar todas las respuestas en un solo array
         const activitiesAll = responses.reduce((acc, data) => [...acc, ...data], []);
-
 
         let dataCleaned = activitiesAll.map(x => ({
             id: (() => ++XidActivity)(),
@@ -325,17 +326,15 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
         modalities = modalities.map(x => ({ ...x, amounts: undefined }));
         console.log("activities", activities.length)
         await insertMassiveActivities(activities, modalities, amounts, false);
-
     } catch (error) {
-        console.log(error)
-        console.log("(error?.response?.data ?? { error })", (error?.response?.data ?? { error }))
+        console.log("(error?.response?.data ?? { error })", error, (error?.response?.data ?? { error }))
         return { ...(error?.response?.data ?? { error }) };
     }
 }
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
     const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
-    for (let ii = 0; ii < 10; ii++) {
+    for (let ii = 0; ii < 20; ii++) {
         try {
             console.log(`running ${ii}`)
             let dataHotels = await axios({
@@ -354,7 +353,6 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
                 rooms: []
             }))
-            console.log("hotelbed,dataHotels")
             if (dataHotels.length > 0) {
                 const paramsRooms = {
                     "stay": {
@@ -396,61 +394,39 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
             await cleanData(dataHotels, "hotelbeds")
             console.log(`finish ${ii}`)
         } catch (error) {
-            console.log("error on hotel bedonline!")
+            console.log("error on hotel bedonline!", ii)
         }
     }
 }
 
 const getHotelBeds = async (hotelstrigger = true) => {
     try {
-        const fechaActual = new Date();
-        const fechaManana = new Date();
-        const fechapasado = new Date();
-
-        // Agregar un día para obtener la fecha de mañana
-        fechaManana.setDate(fechaManana.getDate() + 1);
-        fechapasado.setDate(fechapasado.getDate() + 2);
-
-        // Obtener las partes de la fecha en UTC
-        const fechaActualUTC = fechaActual.toISOString().slice(0, 10);
-        const fechaMananaUTC = fechaManana.toISOString().slice(0, 10);
-        const fechaPasadoUTC = fechapasado.toISOString().slice(0, 10);
-
-        const apiKey = "5869350eadd972f2fa41fe06b27473cd";
-        const secret = "43e5240cf6";
-
-        const apiKeyActivity = "5bc0c8c02f24d1db4d1e879fcac1f926";
-        const secretActivity = "588f045192";
-
-        const apiKeyTransfer = "ed1e79f7311ec6d82474f3c7762cf6b4";
-        const secretTransfer = "1614bf7b6a";
+        const { fechaActualUTC, fechaMananaUTC, fechaPasadoUTC } = getFechas();
 
         const tokenActivities = authorizationHotelBed(apiKeyActivity, secretActivity);
         const tokenTransfer = authorizationHotelBed(apiKeyTransfer, secretTransfer);
-
-        getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC);
-
+        const tokenHotel = authorizationHotelBed(apiKeyHotel, secretHotel);
+        
         // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
+        await Promise.all([
+            getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC),
+            getHotelsBedsOnline(tokenHotel, fechaMananaUTC, fechaPasadoUTC)
+        ])
 
-        if (hotelstrigger) {
-            await getHotelsBedsOnline(authorizationHotelBed(apiKey, secret), fechaMananaUTC, fechaPasadoUTC);
-        }
         return { success: true }
-
-
     } catch (error) {
         console.log(error?.response?.data || error)
         return { success: false }
     }
 }
 
-
 exports.ExecAll = async (req, res) => {
     console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
 
-    await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)])
+    await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)]);
+
     await getHotelBeds();
     await getRatehawhotel();
 
