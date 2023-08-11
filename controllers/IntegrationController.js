@@ -148,6 +148,7 @@ const processChunk = async (data) => {
             destinationcode: "",
             address: hotel.address,
             email: hotel.email,
+            star_rating: hotel.star_rating,
             phone: hotel.phone,
             images: hotel.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: hotel.region.name,
@@ -155,6 +156,7 @@ const processChunk = async (data) => {
             rooms: hotel.room_groups?.map((room) => ({
                 images: room.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
                 code: room.room_group_id + "",
+                room_amenities: room.room_amenities?.join(","),
                 name: room.name,
                 rates: [{
                     price: hotel.metapolicy_struct.check_in_check_out?.length > 0 ? hotel.metapolicy_struct.check_in_check_out[0].price : "",
@@ -380,6 +382,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 metapolicy_struct: "",
                 payment_methods: "",
                 policy_struct: "",
+                star_rating: "",
                 region_iata: "",
                 serp_filters: "",
                 interestpoints : JSON.stringify(x.interestPoints),
@@ -420,6 +423,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                     element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                         ...room,
                         images: "",
+                        room_amenities: "",
                         rates: room.rates.map(rate => ({
                             price: rate.net,
                             boardName: rate.boardName,
