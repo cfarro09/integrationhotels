@@ -350,7 +350,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 }
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
-    const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
+    const fields = ["code", "name", "phones", "description", "city", "email", "address", "images", "destinationCode", "interestPoints", "coordinates", "longitude", "latitude"]
     for (let ii = 0; ii < 20; ii++) {
         try {
             console.log(`running ${ii}`)
