@@ -150,7 +150,7 @@ const processChunk = async (data) => {
             phone: hotel.phone,
             images: hotel.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: hotel.region.name,
-            description: JSON.stringify(hotel.description_struct ?? [])?.map(x => x.paragraphs.join(",")),
+            description: JSON.stringify(hotel.description_struct),
             rooms: hotel.room_groups?.map((room) => ({
                 images: room.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
                 code: room.room_group_id + "",
