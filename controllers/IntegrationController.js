@@ -143,16 +143,16 @@ const processChunk = async (data) => {
             policy_struct: JSON.stringify(hotel.policy_struct),
             region_iata: hotel.region.iata,
             serp_filters: hotel.serp_filters?.join(","),
-
-
+            interestpoints: "",
+            destinationcode: "",
             address: hotel.address,
             email: hotel.email,
             phone: hotel.phone,
-            images: hotel.images?.map(x => x.replace(/{size}/gi, '640x400')).join(","),
+            images: hotel.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: hotel.region.name,
             description: JSON.stringify(hotel.description_struct ?? []).map(x => x.paragraphs.join(",")),
             rooms: hotel.room_groups?.map((room) => ({
-                images: room.images?.map(x => x.replace(/{size}/gi, '640x400')).join(","),
+                images: room.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
                 code: room.room_group_id + "",
                 name: room.name,
                 rates: [{
@@ -317,7 +317,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             countrycode: x.country.code,
             currency: x.currencyName,
             description: x.content.description,
-            images: x.content?.media?.images?.map(images => images.urls.find(image => image.sizeType === "LARGE").resource).join(","),
+            images: x.content?.media?.images?.slice(0, 100).map(images => images.urls.find(image => image.sizeType === "LARGE").resource).join(","),
             destinations: x.destinations?.length > 0 ? x.destinations[0].name : "",
             operationdays: x.operationDays?.map(x => x.name).join(","),
             modalities: x.modalities.map(y => ({
@@ -351,12 +351,12 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
     const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
-    for (let ii = 0; ii < 2; ii++) {
+    for (let ii = 0; ii < 20; ii++) {
         try {
             console.log(`running ${ii}`)
             let dataHotels = await axios({
                 method: 'GET',
-                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}&from=${ii * 100 + 1}&to=${(ii + 1) * 100}`,
+                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}&from=${ii * 1000 + 1}&to=${(ii + 1) * 1000}`,
                 headers
             });
             dataHotels = dataHotels.data.hotels.map(x => ({
@@ -365,7 +365,25 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 description: x.description?.content,
                 address: x.address?.content ?? "",
                 city: x.city?.content,
-                images: x?.images?.map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
+                destinationcode: x.destinationCode,
+
+                check_in_time: "",
+                check_out_time: "",
+                floors_number: "",
+                rooms_number: "",
+                year_built: "",
+                year_renovated: "",
+                latitude: x.coordinates?.longitude,
+                longitude: x.coordinates?.latitude,
+                metapolicy_struct: "",
+                payment_methods: "",
+                policy_struct: "",
+                region_iata: "",
+                serp_filters: "",
+                interestpoints : JSON.stringify(x.interestpoints),
+
+
+                images: x?.images?.slice(0, 100).map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
                 email: x.email,
                 phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
                 rooms: []
@@ -399,6 +417,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 for (const element of dataHotels) {
                     element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
                         ...room,
+                        images: "",
                         rates: room.rates.map(rate => ({
                             price: rate.net,
                             boardName: rate.boardName,
