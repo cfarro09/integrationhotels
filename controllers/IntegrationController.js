@@ -129,13 +129,30 @@ const processChunk = async (data) => {
         const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
             code: null,
             name: hotel.name,
+            
+            check_in_time: hotel.check_in_time,
+            check_out_time: hotel.check_out_time,
+            floors_number: hotel.floors_number,
+            rooms_number: hotel.rooms_number,
+            year_built: hotel.year_built,
+            year_renovated: hotel.year_renovated,
+            latitude: hotel.latitude,
+            longitude: hotel.longitude,
+            metapolicy_struct: JSON.stringify(hotel.metapolicy_struct),
+            payment_methods: JSON.stringify(hotel.payment_methods),
+            policy_struct: JSON.stringify(hotel.policy_struct),
+            region_iata: hotel.region.iata,
+            serp_filters: hotel.serp_filters?.join(","),
+
+
             address: hotel.address,
             email: hotel.email,
             phone: hotel.phone,
             images: hotel.images?.map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: hotel.region.name,
-            description: (hotel.description_struct ?? []).length > 0 ? hotel.description_struct[0].paragraphs[0] : "",
+            description: JSON.stringify(hotel.description_struct ?? []).map(x => x.paragraphs.join(",")),
             rooms: hotel.room_groups?.map((room) => ({
+                images: room.images?.map(x => x.replace(/{size}/gi, '640x400')).join(","),
                 code: room.room_group_id + "",
                 name: room.name,
                 rates: [{
@@ -334,7 +351,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
     const fields = ["code", "name", "phones", "description", "city", "email", "address", "images"]
-    for (let ii = 0; ii < 20; ii++) {
+    for (let ii = 0; ii < 2; ii++) {
         try {
             console.log(`running ${ii}`)
             let dataHotels = await axios({
