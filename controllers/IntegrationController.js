@@ -150,7 +150,7 @@ const processChunk = async (data) => {
             phone: hotel.phone,
             images: hotel.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
             city: hotel.region.name,
-            description: JSON.stringify(hotel.description_struct ?? []).map(x => x.paragraphs.join(",")),
+            description: JSON.stringify(hotel.description_struct ?? [])?.map(x => x.paragraphs.join(",")),
             rooms: hotel.room_groups?.map((room) => ({
                 images: room.images?.slice(0, 100).map(x => x.replace(/{size}/gi, '640x400')).join(","),
                 code: room.room_group_id + "",
@@ -380,7 +380,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 policy_struct: "",
                 region_iata: "",
                 serp_filters: "",
-                interestpoints : JSON.stringify(x.interestpoints),
+                interestpoints : JSON.stringify(x.interestPoints),
 
 
                 images: x?.images?.slice(0, 100).map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
