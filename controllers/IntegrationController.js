@@ -472,7 +472,7 @@ exports.ExecAll = async (req, res) => {
     await getHotelBeds();
     await getRatehawhotel();
 
-    await Promise.all(closeConnection(connection), closeConnection(connection1));
+    await Promise.all([closeConnection(connection), closeConnection(connection1)]);
 
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
