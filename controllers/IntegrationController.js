@@ -3,6 +3,7 @@ const fs = require('fs');
 const { writeFileAsync, deleteDir, readFile, decompressZstFile, getFechas } = require('../config/helpers');
 const { connectBD, connectBD1 } = require('../config/databases');
 const { authorizationHotelBed, getDestinationsSync, getRoutesSync } = require('../config/hotelbeds');
+const e = require('express');
 const apiKeyHotel = "5869350eadd972f2fa41fe06b27473cd";
 const secretHotel = "43e5240cf6";
 const apiKeyActivity = "5bc0c8c02f24d1db4d1e879fcac1f926";
@@ -125,7 +126,9 @@ const processChunk = async (data) => {
         const listObj = data.split(/\n/);
         const lastText = listObj.pop();
         const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
-
+        await writeFileAsync("../files/ratehaw.json", `[${listObj.join(",")}]`)
+        console.log("secrito")
+        return
         const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
             code: null,
             name: hotel.name,
@@ -467,9 +470,9 @@ exports.ExecAll = async (req, res) => {
     connection = await connectBD();
     connection1 = await connectBD1();
 
-    await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)]);
+    // await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)]);
 
-    await getHotelBeds();
+    // await getHotelBeds();
     await getRatehawhotel();
 
     await Promise.all([closeConnection(connection), closeConnection(connection1)]);
