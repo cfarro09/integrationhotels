@@ -329,7 +329,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             modalities: x.modalities.map(y => ({
                 id: (() => ++XidModality)(),
                 activityid: XidActivity,
-                ratedetails: JSON.stringify(x.rates[0]?.rateDetails ?? []), //NEW
+                ratedetails: JSON.stringify(x.rates?.[0]?.rateDetails ?? []), //NEW
                 name: y.name,
                 duration: `${y.duration.value} ${y.duration.metric}`,
                 ratecode: y.rates.length > 0 ? y.rates[0].rateCode : "",
