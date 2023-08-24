@@ -320,12 +320,15 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             countrycode: x.country.code,
             currency: x.currencyName,
             description: x.content.description,
+            name: x.name,   //NEW
+            featureGroups: JSON.stringify(x.content.featureGroups), //NEW
             images: x.content?.media?.images?.slice(0, 100).map(images => images.urls.find(image => image.sizeType === "LARGE").resource).join(","),
             destinations: x.destinations?.length > 0 ? x.destinations[0].name : "",
             operationdays: x.operationDays?.map(x => x.name).join(","),
             modalities: x.modalities.map(y => ({
                 id: (() => ++XidModality)(),
                 activityid: XidActivity,
+                ratedetailjson: JSON.stringify(x.rates[0]?.rateDetails ?? []), //NEW
                 name: y.name,
                 duration: `${y.duration.value} ${y.duration.metric}`,
                 ratecode: y.rates.length > 0 ? y.rates[0].rateCode : "",
@@ -353,6 +356,15 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 }
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
+    let facilities = await axios({
+        method: 'GET',
+        url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/types/facilities?from=1&to=1000`,
+        headers
+    }).data.facilities.reduce((acc, item) => ({
+        ...acc,
+        [`${item.code}-${item.facilityGroupCode}`]: item.description.content
+    }),{})
+
     const fields = ["code", "name", "phones", "description", "city", "email", "address", "images", "destinationCode", "interestPoints", "coordinates", "longitude", "latitude"]
     for (let ii = 0; ii < 20; ii++) {
         try {
@@ -369,7 +381,6 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 address: x.address?.content ?? "",
                 city: x.city?.content,
                 destinationcode: x.destinationCode,
-
                 check_in_time: "",
                 check_out_time: "",
                 floors_number: "",
@@ -382,12 +393,10 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 metapolicy_struct: "",
                 payment_methods: "",
                 policy_struct: "",
-                star_rating: "",
+                star_rating:  x.categoryCode.replace(/[^\d]/g, "") ?? "0", //new
                 region_iata: "",
-                serp_filters: "",
+                serp_filters: x.facilities?.map(x => facilities[`${x.facilityCode}-${x.facilityGroupCode}`]).join(","),
                 interestpoints : JSON.stringify(x.interestPoints),
-
-
                 images: x?.images?.slice(0, 100).map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
                 email: x.email,
                 phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
@@ -420,7 +429,9 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 const dataHotelRooms = resultRooms.data.hotels.hotels;
 
                 for (const element of dataHotels) {
-                    element.rooms = dataHotelRooms.find(hotel => hotel.code === element.code)?.rooms.map(room => ({
+                    const hotelx = dataHotelRooms.find(hotel => hotel.code === element.code);
+                    element.currency = hotelx.currency;
+                    element.rooms = hotelx?.rooms.map(room => ({
                         ...room,
                         images: "",
                         room_amenities: "",
