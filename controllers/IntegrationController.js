@@ -137,6 +137,7 @@ const processChunk = async (data) => {
             year_built: hotel.year_built,
             year_renovated: hotel.year_renovated,
             latitude: hotel.latitude,
+            currency: "",
             longitude: hotel.longitude,
             metapolicy_struct: JSON.stringify(hotel.metapolicy_struct),
             payment_methods: JSON.stringify(hotel.payment_methods),
@@ -304,7 +305,7 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
     ], []);
 
     try {
-        const totalRequests = 12;
+        const totalRequests = 1;
         // Realizar las solicitudes de manera asíncrona y almacenar las respuestas en activitiesAll
         const fetchPromises = Array.from({ length: totalRequests }, (_, i) => fetchActivitiesData(destinations.slice(i * 70, (i + 1) * 70).map(x => ({
             searchFilterItems: [{ "type": "destination", "value": x.code }]
@@ -321,14 +322,14 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
             currency: x.currencyName,
             description: x.content.description,
             name: x.name,   //NEW
-            featureGroups: JSON.stringify(x.content.featureGroups), //NEW
+            featuregroups: JSON.stringify(x.content.featureGroups), //NEW
             images: x.content?.media?.images?.slice(0, 100).map(images => images.urls.find(image => image.sizeType === "LARGE").resource).join(","),
             destinations: x.destinations?.length > 0 ? x.destinations[0].name : "",
             operationdays: x.operationDays?.map(x => x.name).join(","),
             modalities: x.modalities.map(y => ({
                 id: (() => ++XidModality)(),
                 activityid: XidActivity,
-                ratedetailjson: JSON.stringify(x.rates[0]?.rateDetails ?? []), //NEW
+                ratedetails: JSON.stringify(x.rates[0]?.rateDetails ?? []), //NEW
                 name: y.name,
                 duration: `${y.duration.value} ${y.duration.metric}`,
                 ratecode: y.rates.length > 0 ? y.rates[0].rateCode : "",
@@ -366,7 +367,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
     }),{})
 
     const fields = ["code", "name", "phones", "description", "city", "email", "address", "images", "destinationCode", "interestPoints", "coordinates", "longitude", "latitude"]
-    for (let ii = 0; ii < 20; ii++) {
+    for (let ii = 0; ii < 1; ii++) {
         try {
             console.log(`running ${ii}`)
             let dataHotels = await axios({
@@ -481,7 +482,7 @@ exports.ExecAll = async (req, res) => {
     await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)]);
 
     await getHotelBeds();
-    await getRatehawhotel();
+    // await getRatehawhotel();
 
     await Promise.all([closeConnection(connection), closeConnection(connection1)]);
 
