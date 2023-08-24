@@ -367,13 +367,12 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
         [`${item.code}-${item.facilityGroupCode}`]: item.description?.content
     }),{})
 
-    const fields = ["code", "name", "phones", "description", "city", "email", "address", "images", "destinationCode", "interestPoints", "coordinates", "longitude", "latitude"]
     for (let ii = 0; ii < 1; ii++) {
         try {
             console.log(`running ${ii}`)
             let dataHotels = await axios({
                 method: 'GET',
-                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?fields=${fields.join(",")}&from=${ii * 1000 + 1}&to=${(ii + 1) * 1000}`,
+                url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels?from=${ii * 1000 + 1}&to=${(ii + 1) * 1000}`,
                 headers
             });
             dataHotels = dataHotels.data.hotels.map(x => ({
@@ -395,7 +394,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                 metapolicy_struct: "",
                 payment_methods: "",
                 policy_struct: "",
-                star_rating:  x.categoryCode.replace(/[^\d]/g, "") ?? "0", //new
+                star_rating:  x.categoryCode?.replace(/[^\d]/g, "") ?? "0", //new
                 region_iata: "",
                 serp_filters: x.facilities?.map(x => facilities[`${x.facilityCode}-${x.facilityGroupCode}`]).join(","),
                 interestpoints : JSON.stringify(x.interestPoints),
@@ -432,7 +431,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
 
                 for (const element of dataHotels) {
                     const hotelx = dataHotelRooms.find(hotel => hotel.code === element.code);
-                    element.currency = hotelx.currency;
+                    element.currency = hotelx?.currency;
                     element.rooms = hotelx?.rooms.map(room => ({
                         ...room,
                         images: "",
@@ -449,6 +448,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
             await cleanData(dataHotels, "hotelbeds")
             console.log(`finish ${ii}`)
         } catch (error) {
+            console.log(error)
             console.log("error on hotel bedonline!", ii)
         }
     }
