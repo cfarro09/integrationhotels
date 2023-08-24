@@ -357,11 +357,11 @@ const getDestinationsActivities = async (tokenActivities, fechaActualUTC, fechaM
 }
 
 const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
-    let facilities = await axios({
+    let facilities = (await axios({
         method: 'GET',
         url: `https://api.test.hotelbeds.com/hotel-content-api/1.0/types/facilities?from=1&to=1000`,
         headers
-    }).data.facilities.reduce((acc, item) => ({
+    })).data.facilities.reduce((acc, item) => ({
         ...acc,
         [`${item.code}-${item.facilityGroupCode}`]: item.description.content
     }),{})
