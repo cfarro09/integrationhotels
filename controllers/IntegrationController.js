@@ -127,7 +127,7 @@ const processChunk = async (data) => {
         const jsonFormat = JSON.parse(`[${listObj.join(",")}]`);
 
         const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
-            code: null,
+            code: hotel.id,
             name: hotel.name,
             
             check_in_time: hotel.check_in_time,
