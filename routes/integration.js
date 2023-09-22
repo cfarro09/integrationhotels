@@ -1,5 +1,5 @@
 const express = require('express');
-const { GetHotelBeds, GetRatehawhotel, ExecAll } = require('../controllers/IntegrationController');
+const { UpdateHotelRateHaw, ExecAll } = require('../controllers/IntegrationController');
 const router = express.Router()
 
 
@@ -7,6 +7,8 @@ const router = express.Router()
 
 // router.get('/ratehaw', GetRatehawhotel)
 
-// router.get('/all', ExecAll)
+router.get('/all', ExecAll)
+
+router.post('/update/ratehaw', UpdateHotelRateHaw)
 
 module.exports = router

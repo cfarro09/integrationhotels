@@ -28,7 +28,7 @@ const executeQuery = (connection, query, parameters) => {
                 reject(err);
                 return;
             }
-            resolve();
+            resolve(results);
         });
     });
 };
@@ -129,7 +129,6 @@ const processChunk = async (data) => {
         const transformData = jsonFormat.filter(hotel => hotel.name).map(hotel => ({
             code: hotel.id,
             name: hotel.name,
-            
             check_in_time: hotel.check_in_time,
             check_out_time: hotel.check_out_time,
             floors_number: hotel.floors_number,
@@ -366,8 +365,8 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
         const facilities = datafacilities.data.facilities.reduce((acc, item) => ({
             ...acc,
             [`${item.code}-${item.facilityGroupCode}`]: item.description?.content
-        }),{})
-    
+        }), {})
+
         for (let ii = 0; ii < 20; ii++) {
             try {
                 console.log(`running ${ii}`)
@@ -395,10 +394,10 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                     metapolicy_struct: "",
                     payment_methods: "",
                     policy_struct: "",
-                    star_rating:  x.categoryCode?.replace(/[^\d]/g, "") ?? "0", //new
+                    star_rating: x.categoryCode?.replace(/[^\d]/g, "") ?? "0", //new
                     region_iata: "",
                     serp_filters: x.facilities?.map(x => facilities[`${x.facilityCode}-${x.facilityGroupCode}`]).join(","),
-                    interestpoints : JSON.stringify(x.interestPoints),
+                    interestpoints: JSON.stringify(x.interestPoints),
                     images: x?.images?.slice(0, 100).map(x => `http://photos.hotelbeds.com/giata/bigger/${x.path}`).join(","),
                     email: x.email,
                     phone: x.phones?.length > 0 ? x.phones[0].phoneNumber : "",
@@ -421,7 +420,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                             "hotel": dataHotels.map(x => x.code)
                         }
                     }
-    
+
                     const resultRooms = await axios({
                         method: 'POST',
                         url: `https://api.test.hotelbeds.com/hotel-api/1.0/hotels`,
@@ -429,7 +428,7 @@ const getHotelsBedsOnline = async (headers, fechaMananaUTC, fechaPasadoUTC) => {
                         data: JSON.stringify(paramsRooms)
                     })
                     const dataHotelRooms = resultRooms.data.hotels.hotels;
-    
+
                     for (const element of dataHotels) {
                         const hotelx = dataHotelRooms.find(hotel => hotel.code === element.code);
                         element.currency = hotelx?.currency;
@@ -465,7 +464,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
         const tokenActivities = authorizationHotelBed(apiKeyActivity, secretActivity);
         const tokenTransfer = authorizationHotelBed(apiKeyTransfer, secretTransfer);
         const tokenHotel = authorizationHotelBed(apiKeyHotel, secretHotel);
-        
+
         // getTransfers(tokenTransfer, fechaActualUTC, fechaMananaUTC);
         await Promise.all([
             getDestinationsActivities(tokenActivities, fechaMananaUTC, fechaPasadoUTC),
@@ -492,4 +491,53 @@ exports.ExecAll = async (req, res) => {
     await Promise.all([closeConnection(connection), closeConnection(connection1)]);
 
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
+}
+
+exports.UpdateHotelRateHaw = async (req, res) => {
+    try {
+        const destination = req.body.destino;
+
+        const connection = await connectBD();
+        const query = `
+        SELECT GROUP_CONCAT(CONCAT(hoteles.code, '-', hoteles.id) SEPARATOR ',') AS codes 
+        FROM hoteles 
+        WHERE (hoteles.name LIKE CONCAT('%', ?, '%') or hoteles.address LIKE CONCAT('%', ?, '%') or hoteles.city LIKE CONCAT('%', ?, '%')) 
+        AND hoteles.proveedor = 'ratehaw'`;
+
+        const result = await executeQuery(connection, query, [destination, destination, destination]);
+
+        const hotels = result[0].codes?.split(",") ?? [].reduce((acc, item) => [...acc, { code: item.split("-")[0], id: item.split("-")[1] }], [])
+        console.log("aaadas", result)
+
+        if (ids.length > 0) {
+            const { fechaMananaUTC, fechaPasadoUTC } = getFechas();
+
+            const resx = await axios({
+                method: 'POST',
+                url: `https://api.worldota.net/api/b2b/v3/search/serp/hotels/`,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+                    'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+                },
+                data: JSON.stringify({
+                    "checkin": fechaMananaUTC,
+                    "checkout": fechaPasadoUTC,
+                    "language": "es",
+                    "guests": [
+                        {
+                            "adults": 2,
+                            "children": []
+                        }
+                    ],
+                    "ids": hotels.map(x => x.code)
+                })
+            })
+            return res.json(res.data.data.hotels);
+        }
+        return res.json({})
+    } catch (error) {
+        console.log(error)
+        return res.status(400).json({ error });
+    }
 }
