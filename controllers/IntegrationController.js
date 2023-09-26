@@ -495,9 +495,11 @@ exports.ExecAll = async (req, res) => {
 
 exports.UpdateHotelRateHaw = async (req, res) => {
     try {
+        connection = await connectBD();
+        connection1 = await connectBD1();
+
         const destination = req.body.destino;
 
-        const connection = await connectBD();
         const query = `
         SELECT GROUP_CONCAT(CONCAT(hoteles.code, '-', hoteles.id) SEPARATOR ',') AS codes 
         FROM hoteles 
@@ -506,10 +508,9 @@ exports.UpdateHotelRateHaw = async (req, res) => {
 
         const result = await executeQuery(connection, query, [destination, destination, destination]);
 
-        const hotels = result[0].codes?.split(",") ?? [].reduce((acc, item) => [...acc, { code: item.split("-")[0], id: item.split("-")[1] }], [])
-        console.log("aaadas", result)
+        const hotels = (result[0].codes?.split(",") ?? []).reduce((acc, item) => [...acc, { code: item.split("-")[0], id: item.split("-")[1] }], [])
 
-        if (ids.length > 0) {
+        if (hotels.length > 0) {
             const { fechaMananaUTC, fechaPasadoUTC } = getFechas();
 
             const resx = await axios({
@@ -533,7 +534,30 @@ exports.UpdateHotelRateHaw = async (req, res) => {
                     "ids": hotels.map(x => x.code)
                 })
             })
-            return res.json(res.data.data.hotels);
+
+            const cuartos = resx.data.data.hotels.reduce((acc, hotel) => [
+                ...acc,
+                ...(hotel?.rates?.map(rate => ({
+                    hotelid: hotels.find(x => x.code = hotel.id).id,
+                    code: rate.match_hash,
+                    name: rate.room_name,
+                    images: "",
+                    room_amenities: "",
+                    adults: 2,
+                    rateKey: rate.match_hash,
+                    boardName: "",
+                    price: rate.daily_prices[0],
+                })) ?? [])
+            ], []);
+
+            const query = `CALL ufn_insert_rooms_rate(?)`;
+        
+            await Promise.all([
+                executeQuery(connection, query, [JSON.stringify(cuartos)]),
+                executeQuery(connection1, query, [JSON.stringify(cuartos)]),
+            ]);
+
+            return res.json({ cuartos });
         }
         return res.json({})
     } catch (error) {
