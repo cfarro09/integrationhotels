@@ -547,6 +547,7 @@ exports.UpdateHotelRateHaw = async (req, res) => {
                     rateKey: rate.match_hash,
                     boardName: "",
                     price: rate.daily_prices[0],
+                    meal: rate.meal,
                 })) ?? [])
             ], []);
 
