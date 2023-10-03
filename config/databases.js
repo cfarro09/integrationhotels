@@ -6,7 +6,7 @@ exports.connectBD = async () => {
             host: '89.117.72.104',
             user: 'tu_usuario',
             password: 'tu_contrasena',
-            database: 'crmenjoy',
+            database: 'enjoyandtravelsp_crmenjoyperu',
         });
 
         connection1.connect((err) => {
