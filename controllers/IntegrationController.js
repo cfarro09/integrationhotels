@@ -478,7 +478,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
     }
 }
 
-exports.ExecAll = async (req, res) => {
+const ExecAll = async (req, res) => {
     console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
@@ -493,7 +493,7 @@ exports.ExecAll = async (req, res) => {
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
 
-exports.UpdateHotelRateHaw = async (req, res) => {
+const UpdateHotelRateHaw = async (req, res) => {
     try {
         connection = await connectBD();
         connection1 = await connectBD1();
@@ -552,17 +552,57 @@ exports.UpdateHotelRateHaw = async (req, res) => {
             ], []);
 
             const query = `CALL ufn_insert_rooms_rate(?)`;
-        
+
             await Promise.all([
                 executeQuery(connection, query, [JSON.stringify(cuartos)]),
                 executeQuery(connection1, query, [JSON.stringify(cuartos)]),
             ]);
 
-            return res.json({ cuartos });
+            return res.json({ cuartos, hotels: hotels.map(x => x.code) });
         }
         return res.json({})
     } catch (error) {
         console.log(error)
         return res.status(400).json({ error });
     }
+}
+
+const BookingRateHaw = async (req, res) => {
+    try {
+        const { checkin, checkout, adults = 2, hotelcode } = req.body;
+        connection = await connectBD();
+        connection1 = await connectBD1();
+
+        const resx = await axios({
+            method: 'POST',
+            url: `https://api.worldota.net/api/b2b/v3/search/hp/`,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+                'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+            },
+            data: JSON.stringify({
+                checkin,
+                checkout,
+                "residency": "pe",
+                "language": "es",
+                "guests": [
+                    {
+                        adults,
+                        "children": []
+                    }
+                ],
+                "id": "access_international_hotel_annex",
+                "currency": "EUR"
+            })
+        })
+        return res.json({})
+    } catch (error) {
+        console.log(error)
+        return res.status(400).json({ error });
+    }
+}
+
+export default {
+    ExecAll, UpdateHotelRateHaw
 }
