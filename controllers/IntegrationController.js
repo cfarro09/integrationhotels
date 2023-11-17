@@ -3,6 +3,7 @@ const fs = require('fs');
 const { writeFileAsync, deleteDir, readFile, decompressZstFile, getFechas } = require('../config/helpers');
 const { connectBD, connectBD1 } = require('../config/databases');
 const { authorizationHotelBed, getDestinationsSync, getRoutesSync } = require('../config/hotelbeds');
+const { v4: uuidv4 } = require('uuid');
 const apiKeyHotel = "5869350eadd972f2fa41fe06b27473cd";
 const secretHotel = "43e5240cf6";
 const apiKeyActivity = "5bc0c8c02f24d1db4d1e879fcac1f926";
@@ -478,7 +479,7 @@ const getHotelBeds = async (hotelstrigger = true) => {
     }
 }
 
-const ExecAll = async (req, res) => {
+exports.ExecAll = async (req, res) => {
     console.log("searching integration!!")
     connection = await connectBD();
     connection1 = await connectBD1();
@@ -493,7 +494,7 @@ const ExecAll = async (req, res) => {
     return res?.json({ resHotel: "", resRateHaw: "" }) || ""
 }
 
-const UpdateHotelRateHaw = async (req, res) => {
+exports.UpdateHotelRateHaw = async (req, res) => {
     try {
         connection = await connectBD();
         connection1 = await connectBD1();
@@ -567,42 +568,109 @@ const UpdateHotelRateHaw = async (req, res) => {
     }
 }
 
-const BookingRateHaw = async (req, res) => {
+const requestSearchHP = async (checkin, checkout, adults, hotelcode) => {
+    const resx = await axios({
+        method: 'POST',
+        url: `https://api.worldota.net/api/b2b/v3/search/hp/`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+            'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+        },
+        data: JSON.stringify({
+            checkin,
+            checkout,
+            "guests": [
+                {
+                    adults,
+                    "children": []
+                }
+            ],
+            "id": hotelcode,
+            "language": "es",
+        })
+    })
+    return resx.data.data.hotels;
+}
+
+const requestPreBook = async (hash, percent = 20) => {
+    const resx = await axios({
+        method: 'POST',
+        url: `https://api.worldota.net/api/b2b/v3/hotel/prebook`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+            'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+        },
+        data: JSON.stringify({
+            hash,
+            "price_increase_percent": percent
+        })
+    })
+    return resx.data.data.hotels;
+}
+
+const requestBook = async (hash, uuid) => {
+    const resx = await axios({
+        method: 'POST',
+        url: `https://api.worldota.net/api/b2b/v3/hotel/order/booking/form/`,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
+            'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
+        },
+        data: JSON.stringify({
+            "partner_order_id": uuid,
+            "book_hash": hash,
+            "language": "es",
+            "user_ip": "82.29.0.86"
+        })
+    })
+    console.log("requestBook", resx.data)
+    return resx.data.data;
+}
+
+exports.PreBookingRateHaw = async (req, res) => {
     try {
         const { checkin, checkout, adults = 2, hotelcode } = req.body;
         connection = await connectBD();
         connection1 = await connectBD1();
 
-        const resx = await axios({
-            method: 'POST',
-            url: `https://api.worldota.net/api/b2b/v3/search/hp/`,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic NDk4NDo0YzY2ODFhMi02NzY0LTQ1NmItYmI0NC02OTYxZDgyNGMxMWY=',
-                'Cookie': 'uid=TfTb52S0PNlpw28gCFs7Ag=='
-            },
-            data: JSON.stringify({
-                checkin,
-                checkout,
-                "residency": "pe",
-                "language": "es",
-                "guests": [
-                    {
-                        adults,
-                        "children": []
-                    }
-                ],
-                "id": "access_international_hotel_annex",
-                "currency": "EUR"
-            })
-        })
-        return res.json({})
+        const hotels = await requestSearchHP(checkin, checkout, adults, hotelcode);
+        let prebook = null;
+        let ratePrebook = null;
+
+        if (hotels.length > 0) {
+            const hotel = hotels[0];
+            const rate = hotel.rates[0];
+            
+            prebook = await requestPreBook(rate.book_hash)
+
+            const hotelPrebook = prebook[0];
+            ratePrebook = hotelPrebook.rates[0];
+        }
+
+        return res.json({ prebook, ratePrebook })
+
     } catch (error) {
         console.log(error)
         return res.status(400).json({ error });
     }
 }
 
-export default {
-    ExecAll, UpdateHotelRateHaw
+exports.BookingRateHaw = async (req, res) => {
+    try {
+        const { hash, hotelid, cuartoid } = req.body;
+        connection = await connectBD();
+        connection1 = await connectBD1();
+
+        const uuid = uuidv4();
+        const book = await requestBook(hash, uuid);
+
+        return res.json({ book })
+
+    } catch (error) {
+        console.log(error)
+        return res.status(400).json({ error });
+    }
 }
