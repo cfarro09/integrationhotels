@@ -3,6 +3,7 @@ const path = require('path');
 const { exec } = require('child_process')
 
 exports.writeFileAsync = async (filePath, data) => {
+    console.log("guardando!")
     return new Promise((resolve, reject) => {
         const writeStream = fs.createWriteStream(filePath);
 
@@ -12,6 +13,7 @@ exports.writeFileAsync = async (filePath, data) => {
         });
 
         writeStream.on('error', (err) => {
+            console.log("guardando err", err)
             reject(err);
         });
         writeStream.write(data);
