@@ -5,8 +5,9 @@ const { exec } = require('child_process')
 exports.writeFileAsync = async (filePath, data) => {
     return new Promise((resolve, reject) => {
         const writeStream = fs.createWriteStream(filePath);
+        const bufferSize = 1024 * 1024; // Tamaño del buffer, por ejemplo, 1 MB.
+        let written = 0;
 
-        // Evento de escritura finalizada
         writeStream.on('finish', () => {
             resolve();
         });
@@ -14,11 +15,24 @@ exports.writeFileAsync = async (filePath, data) => {
         writeStream.on('error', (err) => {
             reject(err);
         });
-        writeStream.write(data);
 
-        writeStream.end();
+        // Función para escribir en el stream en partes
+        const writeDataInChunks = () => {
+            while (written < data.length) {
+                let chunk = data.slice(written, written + bufferSize);
+                written += chunk.length;
+                if (!writeStream.write(chunk)) {
+                    // Espera a que 'drain' sea emitido para continuar escribiendo
+                    writeStream.once('drain', writeDataInChunks);
+                    return;
+                }
+            }
+            writeStream.end();
+        };
+
+        writeDataInChunks();
     });
-}
+};
 
 exports.deleteDir = (filePath) => {
     const files = fs.readdirSync(filePath);
