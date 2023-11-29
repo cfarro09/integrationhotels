@@ -486,7 +486,7 @@ exports.ExecAll = async (req, res) => {
 
     await Promise.all([cleanData([], "", true), insertMassiveActivities([], [], [], true)]);
 
-    await getHotelBeds();
+    //await getHotelBeds();
     await getRatehawhotel();
 
     await Promise.all([closeConnection(connection), closeConnection(connection1)]);
