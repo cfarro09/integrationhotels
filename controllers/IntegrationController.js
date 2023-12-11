@@ -632,7 +632,9 @@ const requestBook = async (hash, uuid) => {
 
 exports.PreBookingRateHaw = async (req, res) => {
     try {
-        const { checkin, checkout, adults = 2, hotelcode } = req.body;
+        const { fechaMananaUTC, fechaPasadoUTC } = getFechas();
+
+        const { checkin = fechaMananaUTC, checkout = fechaPasadoUTC, adults = 2, hotelcode } = req.body;
         connection = await connectBD();
         connection1 = await connectBD1();
 

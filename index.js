@@ -34,4 +34,4 @@ cron.schedule(patronCron, () => {
 	ExecAll()
 });
 
-ExecAll()
+// ExecAll()
